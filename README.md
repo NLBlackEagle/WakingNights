@@ -1,5 +1,7 @@
-FermiumTemplateMod
+# Waking Nights
 
-A template mod for 1.12.2 using FermiumBooter for mixins, including some basic modding examples.
+A Minecraft 1.12.2 Forge mod by NLBlackEagle.
 
-Search and refactor any names using "ReplaceMe" or "Example" to fit your needs.
+Waking Nights introduces the Waking Night event, a semi-skippable event that rewards players for participating.
+
+Built on FermiumBooter for mixins.
