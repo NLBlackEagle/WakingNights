@@ -1,0 +1,42 @@
+{
+  "insomnia": {
+    "category": "ambient",
+    "sounds": [
+      "wakingnights:insomnia/insomnia_01",
+      "wakingnights:insomnia/insomnia_02",
+      {"name": "wakingnights:insomnia/insomnia_03", "stream": true},
+      "wakingnights:insomnia/insomnia_04",
+      "wakingnights:insomnia/insomnia_05",
+      "wakingnights:insomnia/insomnia_06",
+      {"name": "wakingnights:insomnia/insomnia_07", "stream": true},
+      "wakingnights:insomnia/insomnia_08",
+      {"name": "wakingnights:insomnia/insomnia_09", "stream": true},
+      "wakingnights:insomnia/insomnia_10"
+    ]
+  },
+  "background": {
+    "category": "ambient",
+    "sounds": [
+      "wakingnights:background/background_01",
+      {"name": "wakingnights:background/background_02", "stream": true},
+      {"name": "wakingnights:background/background_03", "stream": true},
+      {"name": "wakingnights:background/background_04", "stream": true}
+    ]
+  },
+  "event.bloodmoon_start": {
+    "category": "master",
+    "sounds": [{"name": "wakingnights:event/bloodmoon_start", "stream": true}]
+  },
+  "event.blight_start": {
+    "category": "master",
+    "sounds": [{"name": "wakingnights:event/blight_start", "stream": true}]
+  },
+  "event.lycanites_start": {
+    "category": "master",
+    "sounds": [{"name": "wakingnights:event/lycanites_start", "stream": true}]
+  },
+  "event.dread_start": {
+    "category": "master",
+    "sounds": [{"name": "wakingnights:event/dread_start", "stream": true}]
+  }
+}

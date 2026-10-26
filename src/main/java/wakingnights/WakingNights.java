@@ -10,10 +10,13 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import wakingnights.capability.CapabilitySpecialEntityHandler;
 import wakingnights.command.CommandWakingNights;
+import software.bernie.geckolib3.GeckoLib;
+import wakingnights.event.NightHooks;
 import wakingnights.handlers.ModRegistry;
+import wakingnights.network.PacketHandler;
 import wakingnights.proxy.CommonProxy;
 
-@Mod(modid = WakingNights.MODID, version = WakingNights.VERSION, name = WakingNights.NAME, dependencies = "required-after:fermiumbooter@[1.5.2,);")
+@Mod(modid = WakingNights.MODID, version = WakingNights.VERSION, name = WakingNights.NAME, dependencies = "required-after:fermiumbooter@[1.5.2,);required-after:geckolib3;")
 public class WakingNights {
     public static final String MODID = "wakingnights";
     public static final String VERSION = "0.1.0";
@@ -29,7 +32,9 @@ public class WakingNights {
 
 	@Mod.EventHandler
     public void preInit(FMLPreInitializationEvent event) {
+        GeckoLib.initialize();
         ModRegistry.init();
+        PacketHandler.init();
         WakingNights.PROXY.preInit();
 
         CapabilitySpecialEntityHandler.registerCapability();
@@ -37,6 +42,7 @@ public class WakingNights {
 
     @Mod.EventHandler
     public void postInit(FMLPostInitializationEvent event) {
+        NightHooks.init();
         completedLoading = true;
     }
 

@@ -15,22 +15,25 @@ When a night is skipped, every online player is checked:
 - Comfort IV or higher: drop one whole level (see below).
 - Liquid Dreams active (without Comfort IV): no change.
 
-### Brave Night (default)
+### Staying awake
+A normal night, not an event and not named: the mod just tracks each player through it.
 If the night is **not** skipped, every player who stayed awake through it drops one whole level at dawn.
 - **Exception, after a Waking Night event:** surviving it puts the counter just below III (normal thresholds: 7), so a
-  single uncomfortable night puts the player back at III. Comfort sleep or another Brave Night lowers it as usual.
-- "Stayed awake" = online and awake for at least 75% of the night (configurable).
+  single uncomfortable night puts the player back at III. Comfort sleep or staying awake another night lowers it as usual.
+- "Stayed awake" = online, awake and active (not AFK) for at least 75% of the night (configurable).
   A player who logged in late and stays awake keeps their level (no change).
   A player who logged in late and the night gets skipped still gets the normal skip check (+1 without comfort).
-- Optional config (off by default): the awake time only counts outside a comfort zone, so AFKing in the base doesn't count.
+- AFK = nothing done for 5 minutes (configurable): no looking around, walking, clicking, chatting.
+- Optional config (off by default): the awake time only counts outside a comfort zone.
+- Waking Night III never drops this way, see the event below.
 
 The current level is shown to the player as a status icon.
 
 | Level            | Grace period (first time) | After that | Effect                         |
 |------------------|---------------------------|------------|--------------------------------|
-| Waking Night I   | 5 nights                  | 3 nights   | Random sounds play             |
-| Waking Night II  | 9 nights                  | 5 nights   | Random insomnia potion effect  |
-| Waking Night III | 14 nights                 | 8 nights   | Night can no longer be skipped |
+| Waking Night I   | 5 nights                  | 3 nights   | Spot sounds somewhere near the player at night, a configurable list per level that gets worse: I household sounds (doors, chests, footsteps), II mobs plus `wakingnights:insomnia`, III a door being bashed, enderman stare, elder guardian curse plus `wakingnights:insomnia` |
+| Waking Night II  | 9 nights                  | 5 nights   | Random insomnia potion effect; very rarely an apparition at night: a see-through mob at the edge of the player's sight, facing them, gone when looked at directly (only that player sees it, no AI) |
+| Waking Night III | 14 nights                 | 8 nights   | Can't sleep (insomnia with Lycanites); background ambience (`wakingnights:background`) at night, which everyone hears during a Waking Night; the status icon is the warning that the event is coming |
 
 All thresholds are configurable.
 
@@ -52,7 +55,8 @@ When the night is skipped, check the player's ChunkComfort effect (`chunkcomfort
 ### Other ways the level changes
 - Potion of Liquid Dreams: prevents the level from rising (does not lower it).
 - Potion of Liquid Nightmares: Waking Night III after you wake up.
-- Later: some entities can inflict a Waking Nightmare (same effect as Liquid Nightmares).
+- Waking Nightmare: entities can give Liquid Nightmares, e.g. special mobs with `wakingnights:liquid_nightmares 0 6000`
+  in their hit effects.
 
 ## 2. Waking potions
 
@@ -63,24 +67,63 @@ When the night is skipped, check the player's ChunkComfort effect (`chunkcomfort
 | Herbalists | Sold for herbs | Sold for herbs |
 | Brewing (later game) | The same herbs the herbalists take; early-to-mid-game ingredients so players explore | Super common ingredients: a dirt cheap horror drink |
 | Splash / lingering / tipped arrows | Yes (vanilla gives these for free) | Yes, so friends can troll each other right as they go to sleep |
+| Built | Effect + potion type `wakingnights:liquid_dreams`, white, Night Vision icon, 20 minutes | Effect + potion type `wakingnights:liquid_nightmares`, black, Blindness icon, 5 minutes, used up on waking |
 
+- When a night is skipped: Liquid Nightmares first (Waking Night III), then comfort (drop a level), then Liquid Dreams
+  (no change), otherwise +1 night.
+
+- **Draught of Dawn:** the expensive way out of Waking Night III (e.g. when another player never reaches III, so no
+  event happens). Removes Waking Night completely: counter 0, grace period marked as passed, so 8 nights (normal
+  thresholds) until III again. Expensive brew and/or a steep herbalist trade; no ingredients that only drop during events.
 - Herb idea *(suggested)*: Rustic chamomile (a real-life sleep aid) for Liquid Dreams.
 - Brewing ingredients are configurable.
 - Trades are set up in the pack (herbalist structures), not in this mod.
 
 ## 3. The Waking Night event: "The Night Wakes"
 
-- Announced with the title **The Night Wakes** and a subtitle naming the night, e.g. `- BloodMoon -` or `- Lycanites -`.
-- Happens only once **all online players** are at Waking Night III. It is server-wide: there's no escaping it.
+- No separate warning (unlike Bloodmoon's "A blood moon is rising"): the Waking Night III status icon is the warning.
+- Starts at dusk (time 12000, the same moment Bloodmoon decides on its bloodmoons), when **all online players** are at
+  Waking Night III. It is server-wide: there's no escaping it.
+- Announced at nightfall with a banner at the top of the screen (like Lycanites' mob event images, fading in and out
+  over about 7 seconds) and a start sound all around the player, both per night type: `textures/gui/events/<id>.png`
+  (falls back to `the_night_wakes.png`) and `startSound=` (bloodmoon_start, lycanites_start, blight_start; dread_start
+  is there for The Dread).
 - Cannot be skipped.
-- Players stay at level III until comfort sleep lowers it.
+- **Waking Night III only goes away by surviving a Waking Night:** being active (not AFK) for 75% of the event night.
+  Comfort sleep and staying awake on a normal night don't lower it.
+  - Not active enough (AFK) or logged out: the player keeps III and faces the next one.
+  - Surviving puts the counter just below III and ends the grace period.
+- Known consequence: as long as one online player isn't at III, there's no event, so a player at III stays at III.
 - Picks one night type (see below).
   - Each night type has a weight. The night picked last time has its weight divided by 3, so the same night rarely
     repeats. With only Bloodmoon and Lycanites this gives exactly 75% for the other one.
-- Thunderstrikes everywhere, coloured per night type.
-  - *(suggested)* Visual-only bolts near players so bases don't burn down; optional small chance of a real strike.
-- Additional spawns: each night type has a configurable list of entities that spawn close to players, but not on top
-  of them, and following normal spawning rules.
+- Timeline:
+  - **Dusk (12000):** the night type is picked. Sky, fog and clouds turn to the night type's colours and the stars go
+    out while the sun sets (only the moon keeps shining): the warning of what's coming. Lightning starts at 1/10 of
+    the night type's amount and builds up to all of it by nightfall.
+  - **Nightfall (13000, the sun is gone):** the event truly starts: title banner, lightning, spawns.
+  - **Dawn (22460 to 23460):** the colours fade back as the sun rises.
+- Per night type (config): sky, fog, cloud and lightning colours (hex RGB, default black), a light colour the light
+  from the sky is multiplied by (block light like torches keeps its colour), lightning strikes per minute around each
+  player and the thunder pitch.
+  - Bloodmoon: dark red sky and fog, pitch black clouds and lightning, faint dark red light outside.
+  - Blight: black sky, fog and clouds, purple moon and lightning, faint dark green light outside.
+  - Lycanites: really dark green sky, dark green lightning (a bit lighter than the sky), faint dark green light
+    outside (as dark as the bloodmoon's red), black fog and clouds, normal moon.
+- The flash of a strike (sky, fog, ground) is in the lightning colour; black lightning is a pulse of darkness.
+- Hooks: a night type can start another mod's night with `hook=<id>`, at nightfall, stopped at dawn.
+  - `bloodmoon`: lumien's Bloodmoon, started through its private setBloodmoon(true) (its public force() only works at
+    exactly time 12000 and could miss by a night). No "a blood moon is rising" message. Looked up at runtime.
+- Lightning is visual only (no fire or damage), 16 to 80 blocks from each player. Dark colours are drawn with normal
+  blending, since vanilla's additive lightning can't be darker than the sky behind it.
+- Additional spawns: each night type can have a weighted list of entities (`spawns=`, `spawnsPerMinute=`,
+  `spawnCap=`) that spawn around players once the sun is gone like vanilla spawning does: out of sight, 24 to 48 blocks
+  away, on solid ground, not in lit places. Every one is blooded or blighted at random and hunts the player.
+  - They're marked in their ForgeData: `overworld_allowed` (EagleMixins doesn't kill SRP mobs outside their biomes)
+    and `wakingnights_event` = the night type. **They never outlive their night:** at dawn (or when another night
+    starts) the loaded ones are removed, and one that loads in later from a chunk that wasn't loaded is removed on the spot.
+  - The Blight is rarer than the others (weight 0.25, about 1 in 9 Waking Nights) and spawns SRP mobs: assimilated
+    animals, humans and villagers, a few primitives and ferals; no ranged, flying, spreading or boss parasites.
 
 ### Night types
 Night types are config entries (subtitle, lightning colour, optional mod hook, spawn list, weight), so new ones need no code.
@@ -94,15 +137,38 @@ Night types are config entries (subtitle, lightning colour, optional mod hook, s
 | `- The Blight -` | Parasites surface (Project Arcturus lore). SRP mobs only; SRP evolution points are not touched. | *(suggested)* Sickly green | Blight |
 - Participation rewards: the blight and blood essence that special entities drop.
 
-### Pack-side config *(suggested)*
-- Bloodmoon `Chance=0` and Lycanites random events off, so Waking Nights is the only source of these events.
+### Pack-side config
+- Natural bloodmoons keep happening (Bloodmoon's own `Chance`): a Waking Night uses Bloodmoon but is something else.
+  Bloodmoon's own sky, moon and light are only switched off during a Waking Night.
 
 ## 4. Special entities (blighted / blooded)
 
-- x% chance for an entity to be blighted or blooded.
-- Blighted drop blight essence, blooded drop blood essence (item configurable, or a loot table).
-  - *(suggested)* Default to the existing Wardlights items (`wardlights:blight_essence`, `wardlights:blood_essence`),
-    which feed the Dormant Badge recipe.
+- Only during a Waking Night, once the sun is gone: 12% of the hostile mobs spawning within 64 blocks of a player turn
+  special (natural spawns and Bloodmoon's), until dawn: at most 15 alive at once per player, at least 3 seconds
+  apart, and none for 60 seconds after the player dies. All configurable. Blooded or blighted per night type (`special=`): Bloodmoon blooded, Blight blighted,
+  Lycanites mixed. Bosses, ranged mobs (Minecraft's ranged marker, plus blaze, ghast, shulker, guardian and evoker in
+  the blacklist) and the rest of the blacklist never do.
+  - Known gap: Lycanites creatures don't carry Minecraft's hostile marker (IMob), so they never turn special yet;
+    to be handled with the Lycanites hook (Lycanites has its own hostility).
+- Tougher (attribute modifiers, configurable): health x1.5, attack damage x1.25, speed x1.15, +50% knockback
+  resistance, +4 armor.
+- Hits (also arrows) give effects, a list of `<potion> <amplifier> <ticks>`, default `srparasites:bleed 0 100`
+  (5 seconds of bleeding). A night type can have its own with `hitEffects=a;b`.
+- Walking special mobs break wooden doors (vanilla rules: Hard difficulty, mobGriefing on).
+- Freeze when watched: a player looking straight at one (and seen by it) makes it stop dead and stare back, no moving
+  or attacking until they look away. Not within 6 blocks, where it fights as usual.
+- Their growths and particles glow in the dark (fully lit), so they can be spotted from afar.
+- Special mobs always know where the nearest player is (within 128 blocks) and hunt them for as long as the Waking
+  Night lasts: their own AI stays active (they may switch to another player they see, or to whatever hurt them), and
+  whenever they have nothing to go for they're pointed at the nearest player again. Far away targets are approached in
+  stretches (follow range 64).
+  A special mob only belongs in a Waking Night that makes its kind: at dawn, and when another night starts, the
+  loaded ones that don't belong vanish in a puff of smoke; one that loads in with a chunk and doesn't belong (a blooded
+  mob outside a bloodmoon, or in a blight) is removed right away. Nothing extra is stored per mob, its kind decides.
+  `despawn=false` on a night type keeps its kind around outside its nights (they stay special until killed, but stop hunting).
+- Killed by a player, blooded mobs drop blood essence and blighted ones blight essence (the Wardlights items, which
+  feed the Dormant Badge recipe). Configurable lists, one drop per line as `<item> <chance in percent>`. Bloodmoon
+  nights make blooded mobs, Lycanites and Blight nights blighted ones.
 - Both carry pulsating growths (Blockbench model) and are stronger than usual.
 - *(suggested)* Config for whether a special entity can also be a Champion / Infernal mob.
 

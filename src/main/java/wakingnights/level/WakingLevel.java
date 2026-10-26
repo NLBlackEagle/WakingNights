@@ -75,14 +75,23 @@ public final class WakingLevel {
         return level;
     }
 
+    /** Straight to Waking Night III (Liquid Nightmares) */
+    public static void setMaxLevel(EntityPlayer player) {
+        setCounter(player, getThresholds(player)[MAX_LEVEL - 1]);
+    }
+
     /** An uncomfortable night: one night closer to the next level, capped at Waking Night III. */
     public static void addNight(EntityPlayer player) {
         setCounter(player, Math.min(getCounter(player) + 1, getThresholds(player)[MAX_LEVEL - 1]));
     }
 
-    /** Drops one whole level: the counter snaps to the start of the level below. */
+    /**
+     * Drops one whole level: the counter snaps to the start of the level below.
+     * Not from Waking Night III, that one only goes away by surviving a Waking Night (see survivedWakingNight).
+     */
     public static void dropLevel(EntityPlayer player) {
         int level = getLevel(player);
+        if(level >= MAX_LEVEL) return;
         setCounter(player, level >= 2 ? getThresholds(player)[level - 2] : 0);
     }
 
@@ -100,7 +109,7 @@ public final class WakingLevel {
         return effect != null && effect.getAmplifier() + 1 >= ForgeConfigHandler.server.minComfortTier;
     }
 
-    // ------ Brave Night: ticks spent awake during the current night ------
+    // ------ Staying awake: ticks spent awake during the current night ------
 
     public static void addAwakeTicks(EntityPlayer player, long night, int ticks) {
         NBTTagCompound data = getData(player);

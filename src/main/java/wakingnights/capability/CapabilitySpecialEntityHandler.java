@@ -2,6 +2,7 @@ package wakingnights.capability;
 
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLiving;
+import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.nbt.NBTBase;
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.EnumFacing;
@@ -12,8 +13,11 @@ import net.minecraftforge.common.capabilities.CapabilityInject;
 import net.minecraftforge.common.capabilities.CapabilityManager;
 import net.minecraftforge.common.capabilities.ICapabilitySerializable;
 import net.minecraftforge.event.AttachCapabilitiesEvent;
+import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import wakingnights.WakingNights;
+import wakingnights.network.MessageSpecialEntity;
+import wakingnights.network.PacketHandler;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -37,7 +41,26 @@ public class CapabilitySpecialEntityHandler {
         return cap != null && cap.isSpecial();
     }
 
+    public static SpecialType getType(Entity entity) {
+        ICapabilitySpecialEntity cap = entity.getCapability(CAP_SPECIAL_ENTITY, null);
+        return cap == null ? SpecialType.NONE : cap.getType();
+    }
+
+    /** Server side: marks or unmarks an entity and tells every client tracking it. */
+    public static void setType(Entity entity, SpecialType type) {
+        ICapabilitySpecialEntity cap = entity.getCapability(CAP_SPECIAL_ENTITY, null);
+        if(cap == null) return;
+        cap.setType(type);
+        PacketHandler.INSTANCE.sendToAllTracking(new MessageSpecialEntity(entity, type), entity);
+    }
+
     public static class EventHandler {
+        @SubscribeEvent
+        public static void onStartTracking(PlayerEvent.StartTracking event) {
+            if(!(event.getEntityPlayer() instanceof EntityPlayerMP) || !isSpecial(event.getTarget())) return;
+            PacketHandler.INSTANCE.sendTo(new MessageSpecialEntity(event.getTarget(), getType(event.getTarget())), (EntityPlayerMP) event.getEntityPlayer());
+        }
+
         @SubscribeEvent
         public static void onAttachCapabilities(AttachCapabilitiesEvent<Entity> event) {
             if(!WakingNights.completedLoading) return; //only needed when other mods instantiate objects during startup that would get the capability

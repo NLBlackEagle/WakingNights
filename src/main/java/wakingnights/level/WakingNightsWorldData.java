@@ -6,15 +6,18 @@ import net.minecraft.world.storage.MapStorage;
 import net.minecraft.world.storage.WorldSavedData;
 import wakingnights.WakingNights;
 
+import javax.annotation.Nullable;
+
 /**
- * Server-wide Waking Night state, saved with the world.
+ * Server-wide Waking Night state, saved with the world: the night type of the event going on (if any)
+ * and of the last one, so the same night rarely repeats.
  */
 public class WakingNightsWorldData extends WorldSavedData {
     private static final String NAME = WakingNights.MODID;
 
     private boolean eventActive = false;
-    private long lastCheckedNight = -1;
-
+    private String currentType = "";
+    private String lastType = "";
     public WakingNightsWorldData(String name) {
         super(name);
     }
@@ -33,30 +36,40 @@ public class WakingNightsWorldData extends WorldSavedData {
         return this.eventActive;
     }
 
-    public void setEventActive(boolean eventActive) {
-        this.eventActive = eventActive;
+    /** The night type of the event going on, null if there's none (or it wasn't found in the config) */
+    @Nullable
+    public String getCurrentType() {
+        return this.eventActive && !this.currentType.isEmpty() ? this.currentType : null;
+    }
+
+    @Nullable
+    public String getLastType() {
+        return this.lastType.isEmpty() ? null : this.lastType;
+    }
+
+    public void startEvent(@Nullable String type) {
+        this.eventActive = true;
+        this.currentType = type == null ? "" : type;
+        if(type != null) this.lastType = type;
         this.markDirty();
     }
 
-    public long getLastCheckedNight() {
-        return this.lastCheckedNight;
-    }
-
-    public void setLastCheckedNight(long night) {
-        this.lastCheckedNight = night;
+    public void endEvent() {
+        this.eventActive = false;
+        this.currentType = "";
         this.markDirty();
     }
 
     @Override
     public void readFromNBT(NBTTagCompound nbt) {
         this.eventActive = nbt.getBoolean("eventActive");
-        this.lastCheckedNight = nbt.getLong("lastCheckedNight");
-    }
+        this.currentType = nbt.getString("currentType");
+        this.lastType = nbt.getString("lastType");    }
 
     @Override
     public NBTTagCompound writeToNBT(NBTTagCompound compound) {
         compound.setBoolean("eventActive", this.eventActive);
-        compound.setLong("lastCheckedNight", this.lastCheckedNight);
-        return compound;
+        compound.setString("currentType", this.currentType);
+        compound.setString("lastType", this.lastType);        return compound;
     }
 }

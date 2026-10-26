@@ -1,7 +1,23 @@
 effect.wakingnights.waking_night=Waking Night
+effect.wakingnights.liquid_dreams=Liquid Dreams
+effect.wakingnights.liquid_nightmares=Liquid Nightmares
+
+potion.effect.liquid_dreams=Potion of Liquid Dreams
+splash_potion.effect.liquid_dreams=Splash Potion of Liquid Dreams
+lingering_potion.effect.liquid_dreams=Lingering Potion of Liquid Dreams
+tipped_arrow.effect.liquid_dreams=Arrow of Liquid Dreams
+potion.effect.liquid_nightmares=Potion of Liquid Nightmares
+splash_potion.effect.liquid_nightmares=Splash Potion of Liquid Nightmares
+lingering_potion.effect.liquid_nightmares=Lingering Potion of Liquid Nightmares
+tipped_arrow.effect.liquid_nightmares=Arrow of Liquid Nightmares
 
 wakingnights.title.the_night_wakes=The Night Wakes
+wakingnights.night.bloodmoon=BloodMoon
+wakingnights.night.lycanites=Lycanites
+wakingnights.night.blight=The Blight
 wakingnights.message.cant_sleep=You are far too restless to sleep...
 wakingnights.message.cant_sleep_event=The night is awake. So are you.
-wakingnights.message.brave_night=You braved the night. It loosens its grip on you.
+wakingnights.message.stayed_awake_1=The whispers fade into silence, your sanity returns with the coming of day.
+wakingnights.message.stayed_awake_2=Your fear of the shadows fades as only the whispers remain, unsettling but preferable.
 wakingnights.message.night_survived=You survived the Waking Night... for now.
+wakingnights.message.night_not_survived=The night is not done with you yet.

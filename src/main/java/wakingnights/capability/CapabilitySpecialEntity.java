@@ -6,7 +6,7 @@ import net.minecraft.nbt.NBTTagCompound;
 public class CapabilitySpecialEntity implements ICapabilitySpecialEntity {
     private final Entity entity;
 
-    private boolean special = false;
+    private SpecialType type = SpecialType.NONE;
 
     //Only for Capability.getDefaultImplementation, which should only be used if the capability is owner-agnostic (so if there's no need to store entity here)
     public CapabilitySpecialEntity(){
@@ -18,24 +18,25 @@ public class CapabilitySpecialEntity implements ICapabilitySpecialEntity {
     }
 
     @Override
-    public boolean isSpecial() {
-        return this.special;
+    public SpecialType getType() {
+        return this.type;
     }
 
     @Override
-    public void setSpecial(boolean special) {
-        this.special = special;
+    public void setType(SpecialType type) {
+        this.type = type;
     }
 
     @Override
     public NBTTagCompound writeToNBT() {
         NBTTagCompound tags = new NBTTagCompound();
-        tags.setBoolean("special", this.special);
+        tags.setByte("type", (byte) this.type.ordinal());
         return tags;
     }
 
     @Override
     public void readFromNBT(NBTTagCompound nbt) {
-        this.special = nbt.getBoolean("special");
-    }
+        //Mobs saved before there were types were all blooded
+        if(!nbt.hasKey("type") && nbt.getBoolean("special")) this.type = SpecialType.BLOODED;
+        else this.type = SpecialType.byOrdinal(nbt.getByte("type"));    }
 }

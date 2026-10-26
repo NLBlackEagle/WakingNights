@@ -3,12 +3,15 @@ package wakingnights.capability;
 import net.minecraft.nbt.NBTTagCompound;
 
 /**
- * Marks an entity as special: it gets the pulsating blob and drops special loot
+ * Marks an entity as special (blooded or blighted): it gets the pulsating growths and drops special loot
  */
 public interface ICapabilitySpecialEntity {
-    boolean isSpecial();
-    void setSpecial(boolean special);
+    SpecialType getType();
+    void setType(SpecialType type);
 
+    default boolean isSpecial() {
+        return this.getType() != SpecialType.NONE;
+    }
     NBTTagCompound writeToNBT();
     void readFromNBT(NBTTagCompound nbt);
 }
