@@ -1,5 +1,6 @@
 package wakingnights;
 
+import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.Mod.Instance;
 import net.minecraftforge.fml.common.SidedProxy;
@@ -12,6 +13,8 @@ import wakingnights.capability.CapabilitySpecialEntityHandler;
 import wakingnights.command.CommandWakingNights;
 import software.bernie.geckolib3.GeckoLib;
 import wakingnights.event.NightHooks;
+import wakingnights.potion.LiquidBrewingRecipe;
+import wakingnights.compat.SimpleDifficultyTemperature;
 import wakingnights.handlers.ModRegistry;
 import wakingnights.network.PacketHandler;
 import wakingnights.proxy.CommonProxy;
@@ -43,6 +46,9 @@ public class WakingNights {
     @Mod.EventHandler
     public void postInit(FMLPostInitializationEvent event) {
         NightHooks.init();
+        LiquidBrewingRecipe.registerAll();
+        //SimpleDifficulty is only compiled against
+        if(Loader.isModLoaded("simpledifficulty")) SimpleDifficultyTemperature.register();
         completedLoading = true;
     }
 

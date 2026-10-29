@@ -10,6 +10,7 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.EntityAIBreakDoor;
+import net.minecraft.entity.ai.EntityAITasks;
 import net.minecraft.pathfinding.PathNavigateGround;
 import net.minecraft.potion.PotionEffect;
 import net.minecraft.entity.ai.attributes.AttributeModifier;
@@ -112,7 +113,7 @@ public final class SpecialSpawner {
         if(world.isRemote) return;
         WakingNightsWorldData data = WakingNightsWorldData.get(world);
         if(!data.isEventActive()) return;
-        if(!(mob instanceof IMob)) {
+        if(!(mob instanceof IMob) && !(NightHooks.LYCANITES && LycanitesHook.isHostileCreature(mob))) {
             ResourceLocation id = EntityList.getKey(mob);
             count("not marked hostile (" + (id == null ? mob.getClass().getSimpleName() : id) + ")");
             return;
@@ -123,13 +124,17 @@ public final class SpecialSpawner {
         }
         if(CapabilitySpecialEntityHandler.isSpecial(mob)) return;
 
-        if(!NightTracker.isAfterNightfall(world.getWorldTime())) {
+        if(!NightTracker.isAfterNightfall(NightTracker.getTime())) {
             count("before nightfall");
             return;
         }
-        NightType type = NightType.get(data.getCurrentType());
+        NightType type = NightType.get(data.getType(world.provider.getDimension()));
         if(type == null || (type.special == null && !type.mixedSpecial)) {
             count("night type makes none");
+            return;
+        }
+        if(!type.allowsSpecial(EntityList.getKey(mob))) {
+            count("not this night's kind of mob");
             return;
         }
 
@@ -157,8 +162,10 @@ public final class SpecialSpawner {
         count("turned special");
 
         SpecialType special = type.mixedSpecial ? (RAND.nextBoolean() ? SpecialType.BLOODED : SpecialType.BLIGHTED) : type.special;
-        //Not in the world yet: the type goes to clients when they start tracking it, the hunt starts once it joins
+        //Usually not in the world yet: the type goes to clients when they start tracking it. Some spawners (Lycanites)
+        //only fire this once the mob joined, so it's set up right away too
         CapabilitySpecialEntityHandler.setType(mob, special);
+        setUp(mob);
         tally.add(mob, now);
     }
 
@@ -172,11 +179,16 @@ public final class SpecialSpawner {
         if(event.getWorld().isRemote || !(entity instanceof EntityLiving)) return;
         SpecialType type = CapabilitySpecialEntityHandler.getType(entity);
         if(type == SpecialType.NONE) return;
-        if(!isEventSpawn(entity) && shouldVanish(type, WakingNightsWorldData.get(event.getWorld()))) {
+        if(!isEventSpawn(entity) && shouldVanish(type, WakingNightsWorldData.get(event.getWorld()), entity.dimension)) {
             event.setCanceled(true);
             return;
         }
-        EntityLiving mob = (EntityLiving) entity;
+        setUp((EntityLiving) entity);
+    }
+
+    /** A special mob's hunt, boosts and door breaking. Only once per mob, whether it's called when it turns special or joins */
+    public static void setUp(EntityLiving mob) {
+        if(isHunting(mob)) return;
         IAttributeInstance followRange = mob.getEntityAttribute(SharedMonsterAttributes.FOLLOW_RANGE);
         if(followRange != null && followRange.getBaseValue() < FOLLOW_RANGE) followRange.setBaseValue(FOLLOW_RANGE);
         applyBoosts(mob);
@@ -227,7 +239,7 @@ public final class SpecialSpawner {
         Entity attacker = event.getSource().getTrueSource();
         if(!(attacker instanceof EntityLiving) || !CapabilitySpecialEntityHandler.isSpecial(attacker)) return;
 
-        NightType type = NightType.get(WakingNightsWorldData.get(attacker.world).getCurrentType());
+        NightType type = NightType.get(WakingNightsWorldData.get(attacker.world).getType(attacker.dimension));
         List<HitEffect> effects = type != null && type.hitEffects != null
                 ? type.hitEffects
                 : HitEffect.parseAll(Arrays.asList(ForgeConfigHandler.server.specialHitEffects));
@@ -241,6 +253,19 @@ public final class SpecialSpawner {
      * Special mobs are tougher. Attribute modifiers with fixed ids: saved with the mob, so they're only ever added once.
      * A mob that just got its health boost is healed up to it.
      */
+    /** A special mob or a night's own spawn: one of the mobs after the players (they don't push each other) */
+    public static boolean isHunter(Entity entity) {
+        return !entity.world.isRemote && (entity.getEntityData().hasKey(EventSpawner.EVENT_TAG) || CapabilitySpecialEntityHandler.isSpecial(entity));
+    }
+
+    /** Whether a mob has the hunt of a special mob */
+    public static boolean isHunting(EntityLiving mob) {
+        for(EntityAITasks.EntityAITaskEntry entry : mob.targetTasks.taskEntries) {
+            if(entry.action instanceof HuntPlayerTask) return true;
+        }
+        return false;
+    }
+
     public static void applyBoosts(EntityLiving mob) {
         boolean healthAdded = addModifier(mob, SharedMonsterAttributes.MAX_HEALTH, HEALTH_ID, "Waking Nights health", ForgeConfigHandler.server.specialHealthMultiplier - 1.0D, 1);
         addModifier(mob, SharedMonsterAttributes.ATTACK_DAMAGE, DAMAGE_ID, "Waking Nights damage", ForgeConfigHandler.server.specialDamageMultiplier - 1.0D, 1);
@@ -267,7 +292,7 @@ public final class SpecialSpawner {
             for(Entity entity : new ArrayList<>(world.loadedEntityList)) {
                 if(!(entity instanceof EntityLiving) || entity.isDead || isEventSpawn(entity)) continue;
                 SpecialType type = CapabilitySpecialEntityHandler.getType(entity);
-                if(type == SpecialType.NONE || !shouldVanish(type, data)) continue;
+                if(type == SpecialType.NONE || !shouldVanish(type, data, entity.dimension)) continue;
                 world.spawnParticle(EnumParticleTypes.SMOKE_LARGE, entity.posX, entity.posY + entity.height * 0.5D, entity.posZ,
                         12, entity.width * 0.5D, entity.height * 0.4D, entity.width * 0.5D, 0.02D);
                 entity.setDead();
@@ -281,11 +306,11 @@ public final class SpecialSpawner {
     }
 
     /**
-     * A special mob only belongs in a Waking Night that makes its kind (a blooded mob in a bloodmoon, not in a blight),
+     * A special mob only belongs in a Waking Night (of its dimension) that makes its kind (a blooded mob in a bloodmoon, not in a blight),
      * unless its kind is kept outside its nights (a night type making it has despawn=false)
      */
-    private static boolean shouldVanish(SpecialType type, WakingNightsWorldData data) {
-        NightType current = NightType.get(data.getCurrentType());
+    private static boolean shouldVanish(SpecialType type, WakingNightsWorldData data, int dimension) {
+        NightType current = NightType.get(data.getType(dimension));
         if(current != null && current.produces(type)) return false;
         return !NightType.isKept(type);
     }

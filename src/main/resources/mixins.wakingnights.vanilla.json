@@ -6,7 +6,8 @@
   "target": "@env(DEFAULT)",
   "minVersion": "0.8",
   "mixins": [
-    "vanilla.EntityLightningBoltMixin"
+    "vanilla.EntityLightningBoltMixin",
+    "vanilla.EntityLivingBaseMixin"
   ],
   "client": [
     "vanilla.ModelRendererMixin",
@@ -16,7 +17,8 @@
     "vanilla.WorldMixin",
     "vanilla.EntityRendererMixin",
     "vanilla.WorldProviderMixin",
-    "vanilla.RenderGlobalMixin"
+    "vanilla.RenderGlobalMixin",
+    "vanilla.BiomeMixin"
   ],
   "injectors": {
     "maxShiftBy": 10

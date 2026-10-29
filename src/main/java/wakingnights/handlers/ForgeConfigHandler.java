@@ -27,6 +27,18 @@ public class ForgeConfigHandler {
 		@MixinConfig.MixinToggle(earlyMixin = "mixins.wakingnights.vanilla.json", defaultValue = true)
 		public boolean enableVanillaMixin = true;
 
+		@Config.Comment("Lets growths on special mobs follow Mo' Bends' animated limbs")
+		@Config.Name("Enable Mo' Bends Compatibility")
+		@MixinConfig.MixinToggle(lateMixin = "mixins.wakingnights.mobends.json", defaultValue = true)
+		@MixinConfig.CompatHandling(modid = "mobends", desired = true, disableMixin = true, warnIngame = false, reason = "Only needed with Mo' Bends")
+		public boolean enableMoBendsMixin = true;
+
+		@Config.Comment("Lets a Waking Night's own parasites past SRP's dimension whitelist and evolution phase spawn rules (other parasites keep following them)")
+		@Config.Name("Enable SRParasites Compatibility")
+		@MixinConfig.MixinToggle(lateMixin = "mixins.wakingnights.srparasites.json", defaultValue = true)
+		@MixinConfig.CompatHandling(modid = "srparasites", desired = true, disableMixin = true, warnIngame = false, reason = "Only needed with SRParasites")
+		public boolean enableSRParasitesMixin = true;
+
 		@Config.Comment({
 				"Nights needed for Waking Night I, II and III after a player's grace period.",
 				"Must contain exactly 3 increasing values."
@@ -156,21 +168,48 @@ public class ForgeConfigHandler {
 				"despawn: whether those special mobs vanish at dawn (true or false).",
 				"startSound: sound played all around every player when the night truly starts, alongside its banner",
 				"(textures/gui/events/<id>.png). Optional: hitEffects=<potion> <amplifier> <ticks>;... (see Special Mob Hit Effects).",
-				"Optional own spawns once the sun is gone: spawns=<entity id> <weight>;... placed out of sight around each player,",
-				"spawnsPerMinute (attempts around each player) and spawnCap (most alive per player). Every one is blooded or",
-				"blighted at random, hunts the player, is marked overworld_allowed (EagleMixins leaves it alone) and is removed",
-				"once the night is over, also when it was in an unloaded chunk then.",
+				"Optional own spawns once the sun is gone: spawns=<entity id> <weight> [<from>-<to>];... in groups around each",
+				"player (from-to: only from that percent of the night to that percent, e.g. 70-100 for the last part only):",
+				"spawnInterval=<seconds or min-max> between groups, spawnGroup=<count or min-max> per group, spawnCap=<count or",
+				"min-max> most around each player (a range is picked once per night). Out of sight at first; spawnInSightAfter=<seconds>",
+				"after nightfall they may also spawn in view, and with spawnCloseAtHalf=true closer and closer, with no distance",
+				"left halfway through the night. spawnSpecialChance (0-100, default 100) is the percentage of them that turn special",
+				"(blooded or blighted at random, they hunt the player). All are marked EagleMixinsOverworldAllowed (EagleMixins",
+				"leaves them alone) and removed once the night is over, also when they were in an unloaded chunk then.",
+				"Optional weather=none|rain|storm (from dusk until dawn), snow=true (its rain falls as snow everywhere, only",
+				"drawn: no snow layers) and temperature=<number> (added to SimpleDifficulty's temperature, negative is colder).",
+				"Optional specialMobs=<entity id>;... : only these mobs can turn special that night (a trailing * matches the",
+				"start of the id, like lycanitesmobs:*). Left out, any hostile mob can (like Bloodmoon).",
+				"Optional ramp=<multiplier>;<multiplier>;... : the 1st, 2nd, ... time the night happens (counted per world), its own",
+				"spawns come in that much of their amount (cap and group size) and strength (health and damage); the last value",
+				"holds from then on. Left out, always 1.0.",
+				"Optional spawns.<dimension>=... : that dimension's own spawn list instead of spawns= (same format).",
+				"Optional dimensions=<id>;<id>;... : where it can happen (e.g. 0;-1;1 for overworld, nether and end). Left out, only",
+				"the overworld (0). During a Waking Night every dimension of any night type has one going on: the picked one where",
+				"it happens, elsewhere one picked (by weight) among those that happen there. Each runs its own special mobs, own",
+				"spawns, hooked events (Lycanites), temperature, banner and start sound; sky and weather follow the overworld's.",
 				"Format: id=<name>, weight=<number>, sky=<hex>, fog=<hex>, clouds=<hex>, lightning=<hex>, light=<hex>, moon=<hex>, lightningPerMinute=<number>, thunderPitch=<number>, hook=<hook>, special=<type>, despawn=<true|false>, startSound=<sound id>"
 		})
 		@Config.Name("Night Types")
 		public String[] nightTypes = {
-				"id=bloodmoon, weight=1, sky=300000, fog=200000, clouds=000000, lightning=000000, light=B03A3A, moon=000000, lightningPerMinute=6, thunderPitch=0.6, hook=bloodmoon, special=blooded, despawn=true, startSound=wakingnights:event.bloodmoon_start",
-				"id=lycanites, weight=1, sky=0A1F07, fog=000000, clouds=000000, lightning=143C0A, light=216721, moon=FFFFFF, lightningPerMinute=6, thunderPitch=0.6, special=blighted, despawn=true, startSound=wakingnights:event.lycanites_start",
-				"id=blight, weight=0.25, sky=000000, fog=000000, clouds=000000, lightning=7A2AB0, light=216721, moon=A04CFF, lightningPerMinute=6, thunderPitch=0.6, special=blighted, despawn=true, startSound=wakingnights:event.blight_start, "
+				"id=bloodmoon, weight=1, sky=300000, fog=200000, clouds=000000, lightning=000000, light=B03A3A, moon=000000, lightningPerMinute=6, thunderPitch=0.6, hook=bloodmoon, special=blooded, despawn=true, startSound=wakingnights:event.bloodmoon_start, ramp=1.0;1.0;1.0;1.0;1.0, dimensions=0",
+				"id=lycanites, weight=1, sky=0C1610, fog=000000, clouds=000000, lightning=3C5A46, light=8FA896, moon=D8E8DC, lightningPerMinute=6, thunderPitch=0.6, hook=lycanites, special=blighted, despawn=true, startSound=wakingnights:event.lycanites_start, specialMobs=lycanitesmobs:*, ramp=1.0;1.0;1.0;1.0;1.0, dimensions=0",
+				"id=blight, weight=0.25, sky=000000, fog=000000, clouds=000000, lightning=7A2AB0, light=5A2E2E, moon=A04CFF, lightningPerMinute=6, thunderPitch=0.6, special=blighted, despawn=true, startSound=wakingnights:event.blight_start, specialMobs=srparasites:*, "
 						+ "spawns=srparasites:sim_human 10;srparasites:sim_villager 8;srparasites:sim_cow 6;srparasites:sim_pig 6;srparasites:sim_sheep 6;"
-						+ "srparasites:sim_wolf 6;srparasites:sim_adventurer 4;srparasites:pri_longarms 4;srparasites:pri_manducater 3;"
-						+ "srparasites:fer_human 3;srparasites:fer_villager 3;srparasites:sim_bigspider 2;srparasites:sim_enderman 2, "
-						+ "spawnsPerMinute=12, spawnCap=12"
+						+ "srparasites:sim_wolf 6;srparasites:fer_human 4;srparasites:fer_villager 4;"
+						+ "srparasites:sim_enderman 3 40-100;srparasites:sim_adventurer 3 40-100;srparasites:sim_bigspider 2 40-100;srparasites:pri_arachnida 2 40-100;"
+						+ "srparasites:pri_longarms 2 70-100;srparasites:pri_manducater 1 70-100;srparasites:pri_bolster 1 70-100, "
+						+ "spawnInterval=3-5, spawnGroup=2-8, spawnCap=35, ramp=0.2;0.4;0.6;0.8;1.0, dimensions=0, "
+						+ "spawns.1=srparasites:sim_human 8;srparasites:sim_villager 6;srparasites:sim_cow 4;srparasites:sim_pig 4;srparasites:sim_sheep 4;"
+						+ "srparasites:sim_wolf 4;srparasites:fer_human 3;srparasites:fer_villager 3;srparasites:pri_yelloweye 6;"
+						+ "srparasites:sim_enderman 6 40-100;srparasites:sim_adventurer 2 40-100;srparasites:sim_bigspider 2 40-100;srparasites:pri_arachnida 2 40-100;"
+						+ "srparasites:carrier_light 3 40-100;srparasites:carrier_flying 2 40-100;"
+						+ "srparasites:pri_longarms 2 70-100;srparasites:pri_manducater 1 70-100;srparasites:pri_bolster 1 70-100;"
+						+ "srparasites:carrier_heavy 1 70-100;srparasites:bomber_light 1 70-100",
+				"id=dread, weight=0.25, sky=0A1640, fog=060C24, clouds=0A1030, lightning=40E0FF, light=C8E4FF, moon=40F0FF, lightningPerMinute=6, thunderPitch=0.6, special=mixed, despawn=true, startSound=wakingnights:event.dread_start, "
+						+ "spawns=iceandfire:dread_thrall 10;iceandfire:dread_ghoul 8;iceandfire:dread_scuttler 4;"
+						+ "iceandfire:dread_beast 3 40-100;iceandfire:dread_horse 2 40-100;iceandfire:dread_knight 2 70-100;iceandfire:dread_lich 1 70-100, "
+						+ "spawnInterval=3-5, spawnGroup=2-8, spawnCap=25-45, spawnInSightAfter=30, spawnCloseAtHalf=true, spawnSpecialChance=12, weather=storm, snow=true, temperature=-5, specialMobs=iceandfire:dread_*, ramp=1.0;1.0;1.0;1.0;1.0, dimensions=0"
 		};
 
 		@Config.Comment({
@@ -252,7 +291,7 @@ public class ForgeConfigHandler {
 
 		@Config.Comment("If true, a special mob a player looks straight at stops dead and stares back, until they look away")
 		@Config.Name("Special Mobs Freeze When Watched")
-		public boolean specialFreezeWhenWatched = true;
+		public boolean specialFreezeWhenWatched = false;
 
 		@Config.Comment("Closer than this (blocks), special mobs keep fighting even when watched")
 		@Config.Name("Special Mob Freeze Min Distance")
@@ -288,6 +327,80 @@ public class ForgeConfigHandler {
 		public boolean specialExcludeRanged = true;
 
 		@Config.Comment({
+				"Lycanites Mobs events a night type with hook=lycanites starts, in waves from nightfall until dawn: one picked",
+				"at random each wave. Use /wakingnights lycanites to list every event Lycanites has loaded (also in the log).",
+				"Only world events work. A poopparty wave turns the sky brown with yellow lightning while it lasts.",
+				"Left out by default: boss altar events (amalgalich, asmodeus, rahovart), seasonal ones",
+				"(halloween, roasting, rudolph, saltytree, satanclaws), cinderfall, dragonsroar and eruption, and",
+				"blackplague and shadowgames: those set the time to 20000, which skips most of the night."
+		})
+		@Config.Name("Lycanites Events")
+		public String[] lycanitesEvents = {
+				"aberrant_assimilation", "arachnophobia", "bamstorm", "bladeflurry", "boulderdash", "hellsfury",
+				"marchofthegorgomites", "primalfury", "raptorrampage", "reptileruckus", "rootriot", "seastorm", "sharknado",
+				"subzero", "theswarm", "tsunami", "windstorm", "wingedvenom", "wintersgrasp", "poopparty"
+		};
+
+		@Config.Comment({
+				"Lycanites events for other dimensions than the overworld, as <dimension>=<event>;<event>;... A dimension not",
+				"listed uses Lycanites Events. Lycanites events can refuse some dimensions in their own config, then they stay quiet there."
+		})
+		@Config.Name("Lycanites Events Per Dimension")
+		public String[] lycanitesEventsPerDimension = {
+				"-1=hellsfury;marchofthegorgomites;aberrant_assimilation;wingedvenom;reptileruckus;boulderdash;poopparty",
+				"1=windstorm;theswarm;aberrant_assimilation;wingedvenom;bamstorm;poopparty"
+		};
+
+		@Config.Comment("If true, a Lycanites wave's mobs vanish when the next wave starts, and the last wave's at dawn (tamed ones stay)")
+		@Config.Name("Lycanites Despawn Waves")
+		public boolean lycanitesDespawnWaves = true;
+
+		@Config.Comment("Seconds after nightfall before the first Lycanites event wave, so it doesn't start over the Waking Night banner")
+		@Config.Name("Lycanites First Event Seconds")
+		@Config.RangeInt(min = 0)
+		public int lycanitesFirstEventSeconds = 10;
+
+		@Config.Comment("Seconds of quiet between Lycanites event waves")
+		@Config.Name("Lycanites Pause Seconds")
+		@Config.RangeInt(min = 0)
+		public int lycanitesPauseSeconds = 20;
+
+		@Config.Comment({
+				"Lycanites event waves per night, picked at random between these each night (both included). The waves are",
+				"stretched to fill the night between them. Events come from the whitelist without repeats: each plays once",
+				"before any plays again."
+		})
+		@Config.Name("Lycanites Waves Min")
+		@Config.RangeInt(min = 1)
+		public int lycanitesWavesMin = 2;
+
+		@Config.Name("Lycanites Waves Max")
+		@Config.RangeInt(min = 1)
+		public int lycanitesWavesMax = 3;
+
+		@Config.Comment({
+				"Brewed into Liquid Dreams from an Awkward Potion: <mod>:<item> or <mod>:<item>:<metadata>.",
+				"Empty for no brewing recipe. Needs a restart."
+		})
+		@Config.Name("Liquid Dreams Brewing Ingredient")
+		public String liquidDreamsIngredient = "";
+
+		@Config.Comment({
+				"Brewed into Liquid Nightmares from an Awkward Potion: <mod>:<item> or <mod>:<item>:<metadata>.",
+				"Empty for no brewing recipe. Needs a restart."
+		})
+		@Config.Name("Liquid Nightmares Brewing Ingredient")
+		public String liquidNightmaresIngredient = "biomesoplenty:flower_0:2";
+
+		@Config.Comment("Tooltip on Liquid Dreams potions, empty for none. & colour codes work (&6 = gold).")
+		@Config.Name("Liquid Dreams Tooltip")
+		public String liquidDreamsTooltip = "&6Can be obtained through any Herbalist in the Herbalist Hut";
+
+		@Config.Comment("Tooltip on Liquid Nightmares potions, empty for none. & colour codes work (&6 = gold).")
+		@Config.Name("Liquid Nightmares Tooltip")
+		public String liquidNightmaresTooltip = "&6An evil concoction brewed from the worst of flora found in biomes such as the Corrupted Scarlet Grove";
+
+		@Config.Comment({
 				"If true, players at Waking Night III always have the insomnia effect (if it exists, e.g. with Lycanites),",
 				"so they can see why they can't sleep. Sleeping is blocked at Waking Night III either way."
 		})
@@ -319,7 +432,8 @@ public class ForgeConfigHandler {
 				"minecraft:donkey=0.6",
 				"minecraft:mule=0.6",
 				"minecraft:skeleton_horse=0.6",
-				"minecraft:zombie_horse=0.6"
+				"minecraft:zombie_horse=0.6",
+				"iceandfire:dread_beast=0.25"
 		};
 
 		@Config.Comment({
@@ -330,7 +444,15 @@ public class ForgeConfigHandler {
 		@Config.RangeDouble(min = 0.0)
 		public double apparitionAverageMinutes = 60.0;
 
-		@Config.Comment("Mobs the apparition can look like (entity ids)")
+		@Config.Comment({
+				"If true, the apparition can look like any hostile mob any mod registered (parasites, Lycanites creatures, ...), not",
+				"bosses or anything bigger than 3 wide and 4 high. It's only drawn on the client, never added to the world. If",
+				"false, it's one of the Apparition Entities."
+		})
+		@Config.Name("Apparition Any Mob")
+		public boolean apparitionAnyMob = true;
+
+		@Config.Comment("Mobs the apparition can look like (entity ids), with Apparition Any Mob off")
 		@Config.Name("Apparition Entities")
 		public String[] apparitionEntities = {
 				"minecraft:zombie",

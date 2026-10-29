@@ -1,6 +1,9 @@
 effect.wakingnights.waking_night=Waking Night
 effect.wakingnights.liquid_dreams=Liquid Dreams
 effect.wakingnights.liquid_nightmares=Liquid Nightmares
+description.effect.wakingnights.waking_night=The night wakes. The longer you go without a comfortable bed, the worse it gets, until the night itself comes for you.
+description.effect.wakingnights.liquid_dreams=Your sleep stays peaceful: skipping the night won't make your Waking Night worse.
+description.effect.wakingnights.liquid_nightmares=Takes Liquid Dreams away. Without it, your Waking Night grows one level worse.
 
 potion.effect.liquid_dreams=Potion of Liquid Dreams
 splash_potion.effect.liquid_dreams=Splash Potion of Liquid Dreams

@@ -1,5 +1,6 @@
 package wakingnights.event;
 
+import net.minecraft.util.ResourceLocation;
 import wakingnights.WakingNights;
 import wakingnights.capability.SpecialType;
 import wakingnights.handlers.ForgeConfigHandler;
@@ -9,6 +10,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.Random;
 
 /**
@@ -17,7 +20,14 @@ import java.util.Random;
  * special=blooded (blooded, blighted, mixed or none: what mobs that turn special during this night become), despawn=true,
  * hitEffects=srparasites:bleed 0 100;minecraft:slowness 0 60 (optional, overrides the Special Mob Hit Effects config),
  * startSound=wakingnights:event.bloodmoon_start (optional, played when the night truly starts),
- * spawns=srparasites:sim_human 10;srparasites:sim_cow 6, spawnsPerMinute=12, spawnCap=12 (optional, its own spawns)
+ * spawns=srparasites:sim_human 10;srparasites:sim_enderman 2 40-100 (the last part: only from 40% to 100% of the night), spawnInterval=3-5, spawnGroup=2-8, spawnCap=35 (or 25-45),
+ * spawnSpecialChance=100, spawnInSightAfter=30, spawnCloseAtHalf=true (optional, its own spawns; spawns.1=... is the list for
+ * dimension 1 instead), weather=none|rain|storm, snow=true (rain falls as snow everywhere, only drawn),
+ * temperature=-5 (SimpleDifficulty temperature change while it lasts),
+ * specialMobs=lycanitesmobs:*;iceandfire:dread_* (only these mobs turn special this night, all hostile ones if left out),
+ * ramp=0.2;0.4;0.6;0.8;1.0 (its own spawns' amount and strength the 1st, 2nd, ... time it happens, the last value from then on),
+ * dimensions=0;-1;1 (where it can happen; the overworld if left out. A dimension the picked night doesn't happen in gets
+ * one of the night types that do, at the same time)
  */
 public class NightType {
     public final String id;
@@ -48,19 +58,42 @@ public class NightType {
     /** Sound played all around every player when this night truly starts (nightfall), null for none */
     @Nullable
     public final String startSound;
-    /** This night's own spawns (EventSpawner): entity ids with their weights, empty for none */
-    public final List<String> spawns;
-    public final List<Double> spawnWeights;
-    /** Average spawn attempts per minute around each player, and the most of them alive per player */
-    public final double spawnsPerMinute;
-    public final int spawnCap;
+    /** This night's own spawns (EventSpawner), and the lists of dimensions that have their own (spawns.<dimension>=) */
+    public final SpawnList spawns;
+    public final Map<Integer, SpawnList> dimensionSpawns;
+    /** Seconds between groups around each player, and how many each group has (random between min and max) */
+    public final double spawnIntervalMin, spawnIntervalMax;
+    public final int spawnGroupMin, spawnGroupMax;
+    /** The most of them around each player, picked between these for each night */
+    public final int spawnCapMin, spawnCapMax;
+    /** Seconds after nightfall from when they may also spawn in view, -1 for never */
+    public final int spawnInSightAfter;
+    /** Whether they spawn closer and closer once they may spawn in view, with no distance left halfway through the night */
+    public final boolean spawnCloseAtHalf;
+    /** Percentage of its own spawns that are special (blooded or blighted at random) */
+    public final int spawnSpecialChance;
+    public final Weather weather;
+    /** Whether its rain is drawn as snow everywhere */
+    public final boolean snow;
+    /** Added to SimpleDifficulty's temperature in the overworld while it lasts */
+    public final float temperature;
+    /** Its own spawns' amount and strength the 1st, 2nd, ... time this night happens; the last value from then on */
+    public final List<Double> ramp;
+    /** Dimensions where its mobs turn special, its own spawns come and its hooked events happen */
+    public final List<Integer> dimensions;
+    /** Entity ids that can turn special this night (a trailing * matches the start), empty for any hostile mob */
+    public final List<String> specialMobs;
+
+    public enum Weather { NONE, RAIN, STORM }
 
     private static String[] parsedConfig;
     private static List<NightType> types = Collections.emptyList();
 
     private NightType(String id, double weight, int sky, int fog, int clouds, int lightning, int light, int moon, double lightningPerMinute, float thunderPitch,
                       @Nullable String hook, @Nullable SpecialType special, boolean mixedSpecial, boolean despawn, @Nullable List<HitEffect> hitEffects, @Nullable String startSound,
-                      List<String> spawns, List<Double> spawnWeights, double spawnsPerMinute, int spawnCap) {
+                      SpawnList spawns, Map<Integer, SpawnList> dimensionSpawns, double[] spawnInterval, int[] spawnGroup, int[] spawnCap,
+                      int spawnInSightAfter, boolean spawnCloseAtHalf, int spawnSpecialChance,
+                      Weather weather, boolean snow, float temperature, List<String> specialMobs, List<Double> ramp, List<Integer> dimensions) {
         this.id = id;
         this.weight = weight;
         this.sky = sky;
@@ -78,23 +111,98 @@ public class NightType {
         this.hitEffects = hitEffects;
         this.startSound = startSound;
         this.spawns = spawns;
-        this.spawnWeights = spawnWeights;
-        this.spawnsPerMinute = spawnsPerMinute;
-        this.spawnCap = spawnCap;
+        this.dimensionSpawns = dimensionSpawns;
+        this.spawnIntervalMin = spawnInterval[0];
+        this.spawnIntervalMax = spawnInterval[1];
+        this.spawnGroupMin = spawnGroup[0];
+        this.spawnGroupMax = spawnGroup[1];
+        this.spawnCapMin = spawnCap[0];
+        this.spawnCapMax = spawnCap[1];
+        this.spawnInSightAfter = spawnInSightAfter;
+        this.spawnCloseAtHalf = spawnCloseAtHalf;
+        this.spawnSpecialChance = spawnSpecialChance;
+        this.weather = weather;
+        this.snow = snow;
+        this.temperature = temperature;
+        this.specialMobs = specialMobs;
+        this.ramp = ramp;
+        this.dimensions = dimensions;
     }
 
-    /** A random entity id from this night's spawns, by weight, null if there are none */
-    @Nullable
-    public String pickSpawn(Random rand) {
-        double total = 0;
-        for(double weight : this.spawnWeights) total += weight;
-        if(total <= 0) return null;
-        double target = rand.nextDouble() * total;
-        for(int i = 0; i < this.spawns.size(); i++) {
-            target -= this.spawnWeights.get(i);
-            if(target < 0) return this.spawns.get(i);
+    /** Whether this night happens in that dimension */
+    public boolean happensIn(int dimension) {
+        return this.dimensions.contains(dimension);
+    }
+
+    /** Its ramp value for the given time this night happens (1 = the first time) */
+    public double getRamp(int timesHappened) {
+        if(this.ramp.isEmpty()) return 1.0D;
+        return this.ramp.get(Math.max(0, Math.min(timesHappened, this.ramp.size()) - 1));
+    }
+
+    /** Whether a mob with this id can turn special this night */
+    public boolean allowsSpecial(@Nullable ResourceLocation id) {
+        if(this.specialMobs.isEmpty()) return true;
+        if(id == null) return false;
+        String name = id.toString();
+        for(String pattern : this.specialMobs) {
+            if(pattern.endsWith("*") ? name.startsWith(pattern.substring(0, pattern.length() - 1)) : name.equals(pattern)) return true;
         }
-        return this.spawns.get(this.spawns.size() - 1);
+        return false;
+    }
+
+    /** The own spawns in a dimension: its own list if it has one, else the night's */
+    public SpawnList getSpawns(int dimension) {
+        return this.dimensionSpawns.getOrDefault(dimension, this.spawns);
+    }
+
+    /** Entity ids with their weights, and the part of the night (from nightfall, 0 to 1) each comes in */
+    public static final class SpawnList {
+        private final List<String> ids = new ArrayList<>();
+        private final List<Double> weights = new ArrayList<>();
+        private final List<double[]> phases = new ArrayList<>();
+
+        /** <entity id> <weight> [<from>-<to> percent of the night];... */
+        static SpawnList parse(String value) {
+            SpawnList list = new SpawnList();
+            for(String spawn : value.split(";")) {
+                String[] parts = spawn.trim().split("\\s+");
+                if(parts.length < 2) continue;
+                list.ids.add(parts[0]);
+                list.weights.add(Math.max(0.0D, Double.parseDouble(parts[1])));
+                int[] phase = parts.length > 2 ? parseRange(parts[2]) : new int[]{0, 100};
+                list.phases.add(new double[]{phase[0] / 100.0D, phase[1] / 100.0D});
+            }
+            return list;
+        }
+
+        public boolean isEmpty() {
+            return this.ids.isEmpty();
+        }
+
+        /** A random entity id that comes in at this part of the night (0 to 1), by weight, null if there's none */
+        @Nullable
+        public String pick(Random rand, double nightPart) {
+            double total = 0;
+            for(int i = 0; i < this.ids.size(); i++) {
+                if(this.comesIn(i, nightPart)) total += this.weights.get(i);
+            }
+            if(total <= 0) return null;
+            double target = rand.nextDouble() * total;
+            String last = null;
+            for(int i = 0; i < this.ids.size(); i++) {
+                if(!this.comesIn(i, nightPart)) continue;
+                last = this.ids.get(i);
+                target -= this.weights.get(i);
+                if(target < 0) return last;
+            }
+            return last;
+        }
+
+        private boolean comesIn(int spawn, double nightPart) {
+            double[] phase = this.phases.get(spawn);
+            return nightPart >= phase[0] && nightPart <= phase[1];
+        }
     }
 
     public static List<NightType> getAll() {
@@ -136,6 +244,41 @@ public class NightType {
         return all.get(all.size() - 1);
     }
 
+    /**
+     * The night type of every dimension any night type happens in: the main one where it happens, elsewhere one picked
+     * by weight among those that do happen there
+     */
+    public static Map<Integer, String> assignDimensions(@Nullable NightType main, Random rand) {
+        Map<Integer, String> assigned = new HashMap<>();
+        for(NightType type : getAll()) {
+            for(int dimension : type.dimensions) {
+                if(assigned.containsKey(dimension)) continue;
+                if(main != null && main.happensIn(dimension)) {
+                    assigned.put(dimension, main.id);
+                    continue;
+                }
+                List<NightType> there = new ArrayList<>();
+                double total = 0;
+                for(NightType candidate : getAll()) {
+                    if(!candidate.happensIn(dimension)) continue;
+                    there.add(candidate);
+                    total += candidate.weight;
+                }
+                double target = rand.nextDouble() * total;
+                NightType picked = there.get(there.size() - 1);
+                for(NightType candidate : there) {
+                    target -= candidate.weight;
+                    if(target < 0) {
+                        picked = candidate;
+                        break;
+                    }
+                }
+                assigned.put(dimension, picked.id);
+            }
+        }
+        return assigned;
+    }
+
     /** Whether mobs turn into this kind of special during this night */
     public boolean produces(SpecialType type) {
         return type != SpecialType.NONE && (this.mixedSpecial || this.special == type);
@@ -166,10 +309,20 @@ public class NightType {
         boolean despawn = true;
         List<HitEffect> hitEffects = null;
         String startSound = null;
-        List<String> spawns = new ArrayList<>();
-        List<Double> spawnWeights = new ArrayList<>();
-        double spawnsPerMinute = 0.0D;
-        int spawnCap = 10;
+        SpawnList spawns = new SpawnList();
+        Map<Integer, SpawnList> dimensionSpawns = new HashMap<>();
+        double[] spawnInterval = {0.0D, 0.0D};
+        int[] spawnGroup = {1, 1};
+        int[] spawnCap = {10, 10};
+        int spawnInSightAfter = -1;
+        boolean spawnCloseAtHalf = false;
+        int spawnSpecialChance = 100;
+        Weather weather = Weather.NONE;
+        boolean snow = false;
+        float temperature = 0.0F;
+        List<String> specialMobs = new ArrayList<>();
+        List<Double> ramp = new ArrayList<>();
+        List<Integer> dimensions = new ArrayList<>();
         try {
             for(String part : entry.split(",")) {
                 String[] keyValue = part.split("=", 2);
@@ -196,18 +349,52 @@ public class NightType {
                     //Several separated by ";", "none" for no effects at all this night
                     case "hitEffects": hitEffects = HitEffect.parseAll(Arrays.asList(value.split(";"))); break;
                     case "startSound": startSound = value.isEmpty() || value.equals("none") ? null : value; break;
-                    //<entity id> <weight>;<entity id> <weight>;...
-                    case "spawns":
-                        for(String spawn : value.split(";")) {
-                            String[] parts = spawn.trim().split("\\s+");
-                            if(parts.length != 2) continue;
-                            spawns.add(parts[0]);
-                            spawnWeights.add(Math.max(0.0D, Double.parseDouble(parts[1])));
+                    //<entity id> <weight> [<from>-<to> percent of the night];...
+                    case "spawns": spawns = SpawnList.parse(value); break;
+                    //Older entries: on average this many per minute, one at a time
+                    case "spawnsPerMinute": {
+                        double perMinute = Double.parseDouble(value);
+                        if(perMinute > 0) spawnInterval = new double[]{60.0D / perMinute, 60.0D / perMinute};
+                        break;
+                    }
+                    case "spawnInterval": {
+                        int[] range = parseRange(value);
+                        spawnInterval = new double[]{range[0], range[1]};
+                        break;
+                    }
+                    case "spawnGroup": spawnGroup = parseRange(value); break;
+                    case "spawnCap": spawnCap = parseRange(value); break;
+                    case "spawnInSightAfter": spawnInSightAfter = Integer.parseInt(value); break;
+                    case "spawnCloseAtHalf": spawnCloseAtHalf = Boolean.parseBoolean(value); break;
+                    case "spawnSpecialChance": spawnSpecialChance = Math.max(0, Math.min(100, Integer.parseInt(value))); break;
+                    case "weather":
+                        if(value.equalsIgnoreCase("rain")) weather = Weather.RAIN;
+                        else if(value.equalsIgnoreCase("storm")) weather = Weather.STORM;
+                        else weather = Weather.NONE;
+                        break;
+                    case "snow": snow = Boolean.parseBoolean(value); break;
+                    case "temperature": temperature = Float.parseFloat(value); break;
+                    case "dimensions":
+                        for(String dimension : value.split(";")) {
+                            if(!dimension.trim().isEmpty()) dimensions.add(Integer.parseInt(dimension.trim()));
                         }
                         break;
-                    case "spawnsPerMinute": spawnsPerMinute = Math.max(0.0D, Double.parseDouble(value)); break;
-                    case "spawnCap": spawnCap = Math.max(0, Integer.parseInt(value)); break;
-                    default: break;
+                    case "ramp":
+                        for(String step : value.split(";")) {
+                            if(!step.trim().isEmpty()) ramp.add(Math.max(0.0D, Double.parseDouble(step.trim())));
+                        }
+                        break;
+                    case "specialMobs":
+                        for(String mob : value.split(";")) {
+                            if(!mob.trim().isEmpty()) specialMobs.add(mob.trim());
+                        }
+                        break;
+                    default:
+                        //spawns.<dimension>=...: that dimension's own list
+                        if(keyValue[0].trim().startsWith("spawns.")) {
+                            dimensionSpawns.put(Integer.parseInt(keyValue[0].trim().substring("spawns.".length())), SpawnList.parse(value));
+                        }
+                        break;
                 }
             }
         }
@@ -215,11 +402,20 @@ public class NightType {
             WakingNights.LOGGER.warn("Invalid night type: {}", entry);
             return null;
         }
+        if(dimensions.isEmpty()) dimensions.add(0);
         if(id == null || id.isEmpty()) {
             WakingNights.LOGGER.warn("Night type without an id: {}", entry);
             return null;
         }
-        return new NightType(id, weight, sky, fog, clouds, lightning, light, moon, lightningPerMinute, thunderPitch, hook, special, mixedSpecial, despawn, hitEffects, startSound, spawns, spawnWeights, spawnsPerMinute, spawnCap);
+        return new NightType(id, weight, sky, fog, clouds, lightning, light, moon, lightningPerMinute, thunderPitch, hook, special, mixedSpecial, despawn, hitEffects, startSound, spawns, dimensionSpawns, spawnInterval, spawnGroup, spawnCap, spawnInSightAfter, spawnCloseAtHalf, spawnSpecialChance, weather, snow, temperature, specialMobs, ramp, dimensions);
+    }
+
+    /** "5" or "3-8": min and max, at least 0 and max at least min */
+    private static int[] parseRange(String value) {
+        String[] parts = value.split("-", 2);
+        int min = Math.max(0, Integer.parseInt(parts[0].trim()));
+        int max = parts.length > 1 ? Math.max(min, Integer.parseInt(parts[1].trim())) : min;
+        return new int[]{min, max};
     }
 
     /** Hex RGB, with or without a leading # */

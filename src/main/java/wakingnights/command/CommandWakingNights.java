@@ -1,13 +1,19 @@
 package wakingnights.command;
 
+import wakingnights.event.NightHooks;
+import wakingnights.WakingNights;
+import wakingnights.event.LycanitesHook;
 import net.minecraft.command.CommandBase;
 import net.minecraft.command.CommandException;
 import net.minecraft.command.ICommandSender;
 import net.minecraft.command.WrongUsageException;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityList;
+import net.minecraft.entity.EntityLivingBase;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.AxisAlignedBB;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.RayTraceResult;
@@ -46,7 +52,7 @@ import java.util.Locale;
  */
 public class CommandWakingNights extends CommandBase {
 
-    private static final String USAGE = "/wakingnights <info|set|grace|skip|awake|start|end|special|apparition|status>";
+    private static final String USAGE = "/wakingnights <info|set|grace|skip|awake|start|end|special|apparition|status|lycanites|hunters|whoblocks>";
 
     @Override
     public String getName() {
@@ -111,13 +117,65 @@ public class CommandWakingNights extends CommandBase {
             case "end":
                 NightTracker.endWakingNight(WakingNightsWorldData.get(overworld), players, overworld.getWorldTime() / 24000);
                 break;
+            case "whoblocks": {
+                //Debug: which mod refuses this mob entering the world here
+                Entity viewer = sender.getCommandSenderEntity();
+                if(viewer == null || args.length < 2) throw new WrongUsageException("/wakingnights whoblocks <mob id> (as a player)");
+                try {
+                    for(String line : JoinBlockerFinder.find(viewer.world, new ResourceLocation(args[1]), viewer.posX, viewer.posY, viewer.posZ)) {
+                        sender.sendMessage(new TextComponentString(line));
+                        WakingNights.LOGGER.info("whoblocks {}: {}", args[1], line);
+                    }
+                }
+                catch(ReflectiveOperationException e) {
+                    throw new CommandException("Couldn't read the event handlers: " + e);
+                }
+                break;
+            }
+            case "hunters": {
+                //Debug: what every special mob nearby is doing
+                Entity viewer = sender.getCommandSenderEntity();
+                if(viewer == null) throw new WrongUsageException("/wakingnights hunters (as a player)");
+                int count = 0;
+                for(Entity entity : viewer.world.loadedEntityList) {
+                    if(!(entity instanceof EntityLiving) || !CapabilitySpecialEntityHandler.isSpecial(entity) || entity.getDistance(viewer) > 128) continue;
+                    EntityLiving mob = (EntityLiving) entity;
+                    EntityLivingBase target = mob.getAttackTarget();
+                    sender.sendMessage(new TextComponentString(String.format("%s %.0fm: hunt %s, target %s, %s, sees you %s",
+                            EntityList.getKey(mob), mob.getDistance(viewer), SpecialSpawner.isHunting(mob) ? "yes" : "NO",
+                            target == null ? "none" : target.getName(), mob.getNavigator().noPath() ? "no path" : "walking",
+                            mob.getEntitySenses().canSee(viewer) ? "yes" : "no")));
+                    count++;
+                }
+                sender.sendMessage(new TextComponentString(count + " special mobs within 128 blocks"));
+                break;
+            }
+            case "lycanites": {
+                List<String> events = NightHooks.LYCANITES ? LycanitesHook.describeEvents() : Collections.<String>emptyList();
+                if(events.isEmpty()) {
+                    sender.sendMessage(new TextComponentString("Lycanites Mobs isn't loaded, or has no mob events"));
+                    break;
+                }
+                WakingNights.LOGGER.info("Lycanites mob events ({}), for the Lycanites Events whitelist:", events.size());
+                for(String line : events) {
+                    WakingNights.LOGGER.info("  {}", line);
+                    sender.sendMessage(new TextComponentString(line));
+                }
+                sender.sendMessage(new TextComponentString(events.size() + " Lycanites events, also written to the log"));
+                break;
+            }
             case "status": {
                 WakingNightsWorldData data = WakingNightsWorldData.get(overworld);
                 long timeOfDay = overworld.getWorldTime() % 24000;
                 sender.sendMessage(new TextComponentString(String.format("Waking Night: %s, time of day %d (%s)",
                         data.isEventActive() ? data.getCurrentType() : "none", timeOfDay,
                         NightTracker.isAfterNightfall(timeOfDay) ? "after nightfall" : "before nightfall or day")));
+                if(data.isEventActive()) sender.sendMessage(new TextComponentString("Per dimension: " + data.getDimensionTypes()));
                 sender.sendMessage(new TextComponentString("Hostile spawns this Waking Night: " + SpecialSpawner.getOutcomes()));
+                for(NightType type : NightType.getAll()) {
+                    int times = data.getTimesHappened(type.id);
+                    sender.sendMessage(new TextComponentString(String.format("%s: happened %d times, ramp now %.1f", type.id, times, type.getRamp(Math.max(1, times)))));
+                }
                 break;
             }
             case "apparition": {
@@ -143,7 +201,7 @@ public class CommandWakingNights extends CommandBase {
                     type = types[(CapabilitySpecialEntityHandler.getType(target).ordinal() + 1) % types.length];
                 }
                 CapabilitySpecialEntityHandler.setType(target, type);
-                if(type != SpecialType.NONE) SpecialSpawner.applyBoosts(target);
+                if(type != SpecialType.NONE && target instanceof EntityLiving) SpecialSpawner.setUp((EntityLiving) target);
                 sender.sendMessage(new TextComponentString(target.getName() + " is now " + type.name().toLowerCase(Locale.ROOT)));
                 break;
             }
@@ -186,7 +244,7 @@ public class CommandWakingNights extends CommandBase {
 
     @Override
     public List<String> getTabCompletions(MinecraftServer server, ICommandSender sender, String[] args, @Nullable BlockPos targetPos) {
-        if(args.length == 1) return getListOfStringsMatchingLastWord(args, "info", "set", "grace", "skip", "awake", "start", "end", "special", "apparition", "status");
+        if(args.length == 1) return getListOfStringsMatchingLastWord(args, "info", "set", "grace", "skip", "awake", "start", "end", "special", "apparition", "status", "lycanites", "hunters", "whoblocks");
         if(args.length == 2 && (args[0].equals("info") || args[0].equals("set") || args[0].equals("grace"))) {
             return getListOfStringsMatchingLastWord(args, server.getOnlinePlayerNames());
         }

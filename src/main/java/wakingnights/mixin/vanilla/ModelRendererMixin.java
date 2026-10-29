@@ -32,10 +32,17 @@ public abstract class ModelRendererMixin implements IRenderedPart {
     private int wakingnights$matrixStamp = -1;
     @Unique
     private FloatBuffer wakingnights$matrix;
+    @Unique
+    private boolean wakingnights$matrixIncludesPart;
 
     @Inject(method = {"render(F)V", "renderWithRotation(F)V"}, at = @At("HEAD"))
     private void wakingnights$stampRender(float scale, CallbackInfo ci) {
         if(this.isHidden || !this.showModel) return;
+        this.wakingnights$onRender(false);
+    }
+
+    @Override
+    public void wakingnights$onRender(boolean matrixIncludesPart) {
         int stamp = GrowthLayerHandler.getRenderStamp();
         this.wakingnights$renderStamp = stamp;
         if(GrowthLayerHandler.isCapturingMatrices()) {
@@ -43,7 +50,13 @@ public abstract class ModelRendererMixin implements IRenderedPart {
             this.wakingnights$matrix.clear();
             GL11.glGetFloat(GL11.GL_MODELVIEW_MATRIX, this.wakingnights$matrix);
             this.wakingnights$matrixStamp = stamp;
+            this.wakingnights$matrixIncludesPart = matrixIncludesPart;
         }
+    }
+
+    @Override
+    public boolean wakingnights$matrixIncludesPart() {
+        return this.wakingnights$matrixIncludesPart;
     }
 
     @Override

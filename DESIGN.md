@@ -54,23 +54,21 @@ When the night is skipped, check the player's ChunkComfort effect (`chunkcomfort
 
 ### Other ways the level changes
 - Potion of Liquid Dreams: prevents the level from rising (does not lower it).
-- Potion of Liquid Nightmares: Waking Night III after you wake up.
-- Waking Nightmare: entities can give Liquid Nightmares, e.g. special mobs with `wakingnights:liquid_nightmares 0 6000`
-  in their hit effects.
+- Potion of Liquid Nightmares (instant): takes Liquid Dreams away; without it, one Waking Night level up (none → I → II → III).
 
 ## 2. Waking potions
 
 | | Potion of Liquid Dreams | Potion of Liquid Nightmares |
 |---|---|---|
 | Tagline | "Makes sure you have a good night!" | "Makes sure you have a terrible night!" |
-| Effect | Level can't rise when you wake up. Immune to Liquid Nightmares for 20 minutes. | Waking Night III after you wake up. |
+| Effect | Level can't rise when you wake up, for 20 minutes. | Instant: removes Liquid Dreams, otherwise one Waking Night level up. |
 | Herbalists | Sold for herbs | Sold for herbs |
-| Brewing (later game) | The same herbs the herbalists take; early-to-mid-game ingredients so players explore | Super common ingredients: a dirt cheap horror drink |
+| Brewing | Awkward Potion + a configurable ingredient (none by default: herbalists only) | Awkward Potion + `biomesoplenty:flower_0:2` (configurable) |
+| Tooltip (configurable, & colour codes) | Gold: "Can be obtained through any Herbalist in the Herbalist Hut" | Gold: "An evil concoction brewed from the worst of flora found in biomes such as the Corrupted Scarlet Grove" |
 | Splash / lingering / tipped arrows | Yes (vanilla gives these for free) | Yes, so friends can troll each other right as they go to sleep |
-| Built | Effect + potion type `wakingnights:liquid_dreams`, white, Night Vision icon, 20 minutes | Effect + potion type `wakingnights:liquid_nightmares`, black, Blindness icon, 5 minutes, used up on waking |
+| Built | Effect + potion type `wakingnights:liquid_dreams`, white, own icon, 20 minutes, no particles | Instant effect + potion type `wakingnights:liquid_nightmares`, black, no icon (tipped arrows do nothing: instant effects get no arrow duration) |
 
-- When a night is skipped: Liquid Nightmares first (Waking Night III), then comfort (drop a level), then Liquid Dreams
-  (no change), otherwise +1 night.
+- When a night is skipped: comfort first (drop a level), then Liquid Dreams (no change), otherwise +1 night.
 
 - **Draught of Dawn:** the expensive way out of Waking Night III (e.g. when another player never reaches III, so no
   event happens). Removes Waking Night completely: counter 0, grace period marked as passed, so 8 nights (normal
@@ -107,8 +105,17 @@ When the night is skipped, check the player's ChunkComfort effect (`chunkcomfort
   from the sky is multiplied by (block light like torches keeps its colour), lightning strikes per minute around each
   player and the thunder pitch.
   - Bloodmoon: dark red sky and fog, pitch black clouds and lightning, faint dark red light outside.
-  - Blight: black sky, fog and clouds, purple moon and lightning, faint dark green light outside.
-  - Lycanites: really dark green sky, dark green lightning (a bit lighter than the sky), faint dark green light
+  - Blight: black sky, fog and clouds, purple moon and lightning, faint muted dark red light outside.
+  - Lycanites: near-black green sky, muted grey-green lightning and light, pale moon (the bright green got old fast)
+  - Lycanites hook (`hook=lycanites`): from 10 s after nightfall, 2 or 3 waves (50/50) of Lycanites world events,
+    each stretched to fill its share of the night (Lycanites' tick count is held back), 20 s quiet between them. Events
+    come from the `Lycanites Events` whitelist as a bag without repeats (kept with the world): each plays once before any
+    plays again; the wave still going at dawn is
+    stopped. A wave's mobs vanish when the next one starts, the last wave's at dawn (`Lycanites Despawn Waves`,
+    tamed ones stay); wave mobs are tagged (night type + wave number), so ones in unloaded chunks vanish when they
+    load in again. A poopparty wave turns the sky, fog and clouds brown with brown light, a mustard yellow moon and yellow lightning
+    (hardcoded), back to the night's colours once it's over. `/wakingnights lycanites` lists every loaded event (chat and log). Left out by default: boss altar events,
+    seasonal events, cinderfall, dragonsroar, eruption, and blackplague/shadowgames (they set the time to 20000, skipping most of the night).
     outside (as dark as the bloodmoon's red), black fog and clouds, normal moon.
 - The flash of a strike (sky, fog, ground) is in the lightning colour; black lightning is a pulse of darkness.
 - Hooks: a night type can start another mod's night with `hook=<id>`, at nightfall, stopped at dawn.
@@ -116,10 +123,12 @@ When the night is skipped, check the player's ChunkComfort effect (`chunkcomfort
     exactly time 12000 and could miss by a night). No "a blood moon is rising" message. Looked up at runtime.
 - Lightning is visual only (no fire or damage), 16 to 80 blocks from each player. Dark colours are drawn with normal
   blending, since vanilla's additive lightning can't be darker than the sky behind it.
-- Additional spawns: each night type can have a weighted list of entities (`spawns=`, `spawnsPerMinute=`,
-  `spawnCap=`) that spawn around players once the sun is gone like vanilla spawning does: out of sight, 24 to 48 blocks
+- Additional spawns: each night type can have a weighted list of entities (`spawns=`, `spawnInterval=`, `spawnGroup=`,
+  `spawnCap=`, `spawnInSightAfter=`, `spawnCloseAtHalf=`): groups every few seconds; each spawn can be limited to a
+  part of the night (`<id> <weight> 70-100`), so the harder ones only join later (Blight and Dread: easy all night,
+  middle ones from 40%, the hardest from 70%, with low weights); that spawn around players once the sun is gone like vanilla spawning does: out of sight, 24 to 48 blocks
   away, on solid ground, not in lit places. Every one is blooded or blighted at random and hunts the player.
-  - They're marked in their ForgeData: `overworld_allowed` (EagleMixins doesn't kill SRP mobs outside their biomes)
+  - They're marked in their ForgeData: `EagleMixinsOverworldAllowed` (EagleMixins doesn't kill SRP mobs outside their biomes)
     and `wakingnights_event` = the night type. **They never outlive their night:** at dawn (or when another night
     starts) the loaded ones are removed, and one that loads in later from a chunk that wasn't loaded is removed on the spot.
   - The Blight is rarer than the others (weight 0.25, about 1 in 9 Waking Nights) and spawns SRP mobs: assimilated
@@ -132,7 +141,7 @@ Night types are config entries (subtitle, lightning colour, optional mod hook, s
 |------------------|--------------|-----------|---------|
 | `- BloodMoon -`  | Starts a Bloodmoon (Bloodmoon mod). | Black | Blood |
 | `- Lycanites -`  | Starts a Lycanites mob event. *(suggested)* From a shortlist that fits the lore (e.g. aberrant_assimilation, shadowgames, blackplague, hellsfury), no joke events. | Purple | — |
-| `- The Dread -`  | Ice and Fire dread mobs (dread knights, dread ghouls, ...) rise. | *(suggested)* Pale blue | Blight |
+| `- The Dread -`  | Ice and Fire dread mobs rise in a snowstorm. Rare (weight 0.25). Dark blue sky, cyan moon and lightning, very light blue light, storm with snow drawn everywhere (no snow layers), SimpleDifficulty temperature -5. Own spawns: dread thralls, ghouls, scuttlers, beasts, knights, horses, liches (not the lich skull, a projectile); 12% of them blooded or blighted. | Cyan | Blooded and blighted |
 | `- The Mist -`   | Thick fog. A single wingless Assimilated Ender Dragon (`srparasites:sim_dragone`) hunts the player and always drops blood essence. Dispatcher tentacles (`srparasites:dispatcherten`) sometimes come up from the ground to trap the player. Other SRP mobs very rarely, to keep it creepy. | — | Blood (guaranteed from the dragon) |
 | `- The Blight -` | Parasites surface (Project Arcturus lore). SRP mobs only; SRP evolution points are not touched. | *(suggested)* Sickly green | Blight |
 - Participation rewards: the blight and blood essence that special entities drop.
@@ -148,14 +157,30 @@ Night types are config entries (subtitle, lightning colour, optional mod hook, s
   apart, and none for 60 seconds after the player dies. All configurable. Blooded or blighted per night type (`special=`): Bloodmoon blooded, Blight blighted,
   Lycanites mixed. Bosses, ranged mobs (Minecraft's ranged marker, plus blaze, ghast, shulker, guardian and evoker in
   the blacklist) and the rest of the blacklist never do.
-  - Known gap: Lycanites creatures don't carry Minecraft's hostile marker (IMob), so they never turn special yet;
-    to be handled with the Lycanites hook (Lycanites has its own hostility).
+  - Lycanites creatures don't carry Minecraft's hostile marker (IMob); hostile, untamed, non-minion Lycanites creatures
+    count as hostile too (Lycanites' own isHostile()).
+- Dimensions per night type (, default the overworld only). During a Waking Night every dimension of any
+  night type has one going on: the picked one where it happens, elsewhere one picked by weight among those that do.
+  Each runs its own specials, own spawns, Lycanites waves, temperature, banner and start sound; sky and weather follow
+  the overworld's. Stored per dimension in the server-wide data.
+  Defaults: every night type only in the overworld (the other dimensions didn't work out yet: parasites are refused
+  in the Nether, see /wakingnights whoblocks). During a Waking Night, awake time only counts in a dimension the night
+  is going on in, so a player who spends more than a quarter of it elsewhere hasn't survived it.
+  Own spawn lists per dimension (`spawns.<dimension>=`): the Blight's End list adds flying parasites (Primitive Yelloweyes,
+  carriers, light bombers). Lycanites event whitelists per dimension (`Lycanites Events Per Dimension`): Nether and End
+  get their own fitting events; each dimension picks its own event per wave.
+- Ramp per night type (): its own spawns' amount and strength the 1st, 2nd, ... time it happens (Blight
+  0.2/0.4/0.6/0.8/1.0, the rest 1.0), counted server-wide.
+- Hunting mobs (specials and a night's own spawns) don't push each other, so a crowd can't shove its own into lava.
+- Which mobs can turn special depends on the night type (`specialMobs=`): Bloodmoon any hostile mob, Lycanites only
+  Lycanites creatures (`lycanitesmobs:*`), the Blight only parasites (`srparasites:*`), the Dread only dread mobs
+  (`iceandfire:dread_*`).
 - Tougher (attribute modifiers, configurable): health x1.5, attack damage x1.25, speed x1.15, +50% knockback
   resistance, +4 armor.
 - Hits (also arrows) give effects, a list of `<potion> <amplifier> <ticks>`, default `srparasites:bleed 0 100`
   (5 seconds of bleeding). A night type can have its own with `hitEffects=a;b`.
 - Walking special mobs break wooden doors (vanilla rules: Hard difficulty, mobGriefing on).
-- Freeze when watched: a player looking straight at one (and seen by it) makes it stop dead and stare back, no moving
+- Freeze when watched (off by default, it made things too easy): a player looking straight at one (and seen by it) makes it stop dead and stare back, no moving
   or attacking until they look away. Not within 6 blocks, where it fights as usual.
 - Their growths and particles glow in the dark (fully lit), so they can be spotted from afar.
 - Special mobs always know where the nearest player is (within 128 blocks) and hunt them for as long as the Waking

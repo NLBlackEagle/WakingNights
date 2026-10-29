@@ -75,9 +75,10 @@ public final class WakingLevel {
         return level;
     }
 
-    /** Straight to Waking Night III (Liquid Nightmares) */
-    public static void setMaxLevel(EntityPlayer player) {
-        setCounter(player, getThresholds(player)[MAX_LEVEL - 1]);
+    /** One level up (Liquid Nightmares): the counter jumps to the start of the next level, at most Waking Night III */
+    public static void raiseLevel(EntityPlayer player) {
+        int level = getLevel(player);
+        if(level < MAX_LEVEL) setCounter(player, getThresholds(player)[level]);
     }
 
     /** An uncomfortable night: one night closer to the next level, capped at Waking Night III. */

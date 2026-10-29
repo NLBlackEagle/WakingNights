@@ -6,9 +6,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.world.World;
 import net.minecraftforge.common.DimensionManager;
-import net.minecraftforge.event.entity.living.PotionEvent;
 import net.minecraftforge.event.entity.player.PlayerSleepInBedEvent;
-import net.minecraftforge.fml.common.eventhandler.Event;
 import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.EventPriority;
@@ -18,6 +16,7 @@ import net.minecraftforge.fml.common.gameevent.TickEvent;
 import wakingnights.WakingNights;
 import wakingnights.event.EventLightning;
 import wakingnights.event.EventSpawner;
+import wakingnights.event.NightWeather;
 import wakingnights.event.NightHook;
 import wakingnights.event.NightHooks;
 import wakingnights.event.NightType;
@@ -31,6 +30,8 @@ import wakingnights.potion.PotionLiquid;
 import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.LinkedHashSet;
 import java.util.Random;
 
 /**
@@ -95,9 +96,11 @@ public class NightTracker {
         if(data.isEventActive()) {
             if(passed(previous, time, NIGHTFALL)) announceWakingNight(data, players);
             float buildUp = getBuildUp(time);
-            NightType type = NightType.get(data.getCurrentType());
-            if(buildUp > 0.0F) EventLightning.tick(world, type, players, buildUp);
-            if(type != null && isAfterNightfall(time)) EventSpawner.tick(world, type, players);
+            if(buildUp > 0.0F) EventLightning.tick(data, players, buildUp);
+            if(isAfterNightfall(time)) {
+                EventSpawner.tick(world, data, players);
+                for(NightHook hook : getHooks(data)) hook.tick(world);
+            }
         }
 
         long night = time / DAY_LENGTH;
@@ -106,6 +109,8 @@ public class NightTracker {
             for(EntityPlayerMP player : players) {
                 if(player.isPlayerSleeping() || !ActivityTracker.isActive(player)) continue;
                 if(ForgeConfigHandler.server.stayAwakeOutsideComfort && WakingLevel.isComfortable(player)) continue;
+                //During a Waking Night only where it's going on: no sitting it out in another dimension
+                if(data.isEventActive() && data.getType(player.dimension) == null) continue;
                 WakingLevel.addAwakeTicks(player, night, 20);
             }
         }
@@ -150,25 +155,13 @@ public class NightTracker {
     }
 
     /**
-     * Waking up from a skipped night: Liquid Nightmares means Waking Night III (and is used up), a comfortable bed drops
-     * a level, Liquid Dreams keeps the level where it is, anything else is one more night towards the next level.
+     * Waking up from a skipped night: a comfortable bed drops a level, Liquid Dreams keeps the level where it is,
+     * anything else is one more night towards the next level.
      */
     public static void onNightSkipped(List<EntityPlayerMP> players) {
         for(EntityPlayerMP player : players) {
-            if(player.isPotionActive(PotionLiquid.NIGHTMARES)) {
-                player.removePotionEffect(PotionLiquid.NIGHTMARES);
-                WakingLevel.setMaxLevel(player);
-            }
-            else if(WakingLevel.isComfortable(player)) WakingLevel.dropLevel(player);
+            if(WakingLevel.isComfortable(player)) WakingLevel.dropLevel(player);
             else if(!player.isPotionActive(PotionLiquid.DREAMS)) WakingLevel.addNight(player);
-        }
-    }
-
-    /** Liquid Dreams keeps Liquid Nightmares away, also splashed or shot at the player */
-    @SubscribeEvent
-    public static void onPotionApplicable(PotionEvent.PotionApplicableEvent event) {
-        if(event.getPotionEffect().getPotion() == PotionLiquid.NIGHTMARES && event.getEntityLiving().isPotionActive(PotionLiquid.DREAMS)) {
-            event.setResult(Event.Result.DENY);
         }
     }
 
@@ -196,6 +189,12 @@ public class NightTracker {
         startWakingNight(data, players, NightType.pick(data.getLastType(), RAND));
     }
 
+    /** The overworld's time, which every dimension's Waking Night goes by (some dimensions keep their own) */
+    public static long getTime() {
+        World overworld = DimensionManager.getWorld(0);
+        return overworld == null ? 0 : overworld.getWorldTime();
+    }
+
     /** The hook of a night type, null if it has none or its mod isn't loaded */
     @Nullable
     private static NightHook getHook(@Nullable String type) {
@@ -203,20 +202,31 @@ public class NightTracker {
         return nightType == null ? null : NightHooks.get(nightType.hook);
     }
 
+    /** The hooks of every night type going on somewhere, each once */
+    private static Set<NightHook> getHooks(WakingNightsWorldData data) {
+        Set<NightHook> hooks = new LinkedHashSet<>();
+        for(String type : data.getActiveTypes()) {
+            NightHook hook = getHook(type);
+            if(hook != null) hooks.add(hook);
+        }
+        return hooks;
+    }
+
     /** With a given night type (null: none configured) */
     public static void startWakingNight(WakingNightsWorldData data, List<EntityPlayerMP> players, @Nullable NightType type) {
-        //Started again over one that's going on (debug command): stop the old one's hooked night
-        NightHook previous = getHook(data.getCurrentType());
-        if(previous != null) previous.end(DimensionManager.getWorld(0));
+        //Started again over one that's going on (debug command): stop the old one's hooked nights
+        for(NightHook previous : getHooks(data)) previous.end(DimensionManager.getWorld(0));
         SpecialSpawner.reset();
         EventSpawner.reset();
         if(type == null) WakingNights.LOGGER.warn("No night types configured, the Waking Night has no night type");
-        data.startEvent(type == null ? null : type.id);
+        data.startEvent(type == null ? null : type.id, NightType.assignDimensions(type, RAND));
         //Started over another one (debug command): its special mobs of the wrong kind and its own spawns go
         SpecialSpawner.removeStrays(data);
         EventSpawner.removeStrays(data);
-        WakingNights.LOGGER.info("A Waking Night begins: {}", type == null ? "-" : type.id);
-        PacketHandler.INSTANCE.sendToAll(new MessageEventState(type, true));
+        WakingNights.LOGGER.info("A Waking Night begins: {} (per dimension: {})", type == null ? "-" : type.id, data.getDimensionTypes());
+        //Weather is the overworld's: its night type's
+        NightWeather.start(DimensionManager.getWorld(0), data, NightType.get(data.getType(0)));
+        for(EntityPlayerMP player : players) sendState(player, data);
         for(EntityPlayerMP player : players) {
             if(player.isPlayerSleeping()) player.wakeUpPlayer(true, true, false);
         }
@@ -224,13 +234,14 @@ public class NightTracker {
 
     /** Nightfall: the sun is gone and the Waking Night truly starts. */
     public static void announceWakingNight(WakingNightsWorldData data, List<EntityPlayerMP> players) {
-        String type = data.getCurrentType();
-        NightHook hook = getHook(type);
-        if(hook != null) hook.start(DimensionManager.getWorld(0));
-        //Clients show the night type's banner and play its start sound
-        NightType nightType = type == null ? null : NightType.get(type);
-        MessageEventAnnounce announce = new MessageEventAnnounce(type, nightType == null ? null : nightType.startSound);
-        for(EntityPlayerMP player : players) PacketHandler.INSTANCE.sendTo(announce, player);
+        for(NightHook hook : getHooks(data)) hook.start(DimensionManager.getWorld(0));
+        //Clients show the banner of their dimension's night type and play its start sound
+        for(EntityPlayerMP player : players) {
+            String type = data.getType(player.dimension);
+            if(type == null) continue;
+            NightType nightType = NightType.get(type);
+            PacketHandler.INSTANCE.sendTo(new MessageEventAnnounce(type, nightType == null ? null : nightType.startSound), player);
+        }
     }
 
     /** Players joining later see the sky of a Waking Night that's going on */
@@ -238,8 +249,21 @@ public class NightTracker {
     public static void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
         if(!(event.player instanceof EntityPlayerMP)) return;
         WakingNightsWorldData data = WakingNightsWorldData.get(event.player.world);
-        String type = data.getCurrentType();
-        PacketHandler.INSTANCE.sendTo(new MessageEventState(type == null ? null : NightType.get(type), data.isEventActive()), (EntityPlayerMP) event.player);
+        sendState((EntityPlayerMP) event.player, WakingNightsWorldData.get(event.player.world));
+    }
+
+    /** Another dimension: its night's sky (or none) */
+    @SubscribeEvent
+    public static void onChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
+        if(event.player instanceof EntityPlayerMP) sendState((EntityPlayerMP) event.player, WakingNightsWorldData.get(event.player.world));
+    }
+
+    /** Tells a client about the night going on in their dimension: its colours, or that there's none there */
+    public static void sendState(EntityPlayerMP player, WakingNightsWorldData data) {
+        String type = data.getType(player.dimension);
+        MessageEventState state = new MessageEventState(type == null ? null : NightType.get(type), type != null);
+        NightHook hook = getHook(type);
+        PacketHandler.INSTANCE.sendTo(hook == null ? state : hook.adjustState(state, player.dimension), player);
     }
 
     /**
@@ -247,8 +271,8 @@ public class NightTracker {
      * and so does anyone who logged out. Players who joined in the middle at a lower level get a normal night.
      */
     public static void endWakingNight(WakingNightsWorldData data, List<EntityPlayerMP> players, long night) {
-        NightHook hook = getHook(data.getCurrentType());
-        if(hook != null) hook.end(DimensionManager.getWorld(0));
+        for(NightHook hook : getHooks(data)) hook.end(DimensionManager.getWorld(0));
+        NightWeather.end(DimensionManager.getWorld(0), data);
         data.endEvent();
         SpecialSpawner.removeStrays(data);
         //The night's own spawns (e.g. parasites in the overworld) must never outlive it

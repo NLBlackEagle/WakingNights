@@ -8,8 +8,14 @@ package wakingnights.client.growth;
 public interface IRenderedPart {
     int wakingnights$getRenderStamp();
 
-    /** Loads the GL matrix the part was drawn with in the current entity render (before its own rotation), if known. */
+    /** Loads the GL matrix the part was drawn with in the current entity render, if known. */
     boolean wakingnights$loadRenderMatrix();
+
+    /** Whether that matrix already has the part's own transform in it (Mo' Bends parts), else it's from before it */
+    boolean wakingnights$matrixIncludesPart();
+
+    /** The part is being drawn now, with the current GL matrix */
+    void wakingnights$onRender(boolean matrixIncludesPart);
 
     static boolean wasRendered(Object part) {
         return ((IRenderedPart) part).wakingnights$getRenderStamp() == GrowthLayerHandler.getRenderStamp();

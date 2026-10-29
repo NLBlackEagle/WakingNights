@@ -14,6 +14,7 @@ import net.minecraftforge.fml.common.gameevent.PlayerEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 import wakingnights.WakingNights;
 import wakingnights.handlers.ForgeConfigHandler;
+import wakingnights.potion.PotionLiquid;
 import wakingnights.potion.PotionWakingNight;
 
 import java.util.HashMap;
@@ -42,6 +43,7 @@ public class WakingEffects {
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
         if(event.phase != TickEvent.Phase.END || !(event.player instanceof EntityPlayerMP)) return;
         EntityPlayerMP player = (EntityPlayerMP) event.player;
+        PotionLiquid.stripParticles(player);
         if(player.ticksExisted % 20 != 0) return;
 
         int level = WakingLevel.getLevel(player);

@@ -60,6 +60,9 @@ dependencies {
 
     implementation fg.deobf("curse.maven:fermiumbooter-${fermiumbooter_version}")
     implementation fg.deobf("curse.maven:geckolib-${geckolib_version}")
+    //Optional integration, only compiled against: Waking Nights only touches it when Lycanites Mobs is loaded
+    compileOnly fg.deobf("curse.maven:lycanitesmobs-${lycanitesmobs_version}")
+    compileOnly fg.deobf("curse.maven:simpledifficulty-${simpledifficulty_version}")
     // Bloodmoon can't be added to runClient: its coremod looks for ForgeGradle 2's GradleStartCommon to find
     // Minecraft's names and crashes the dev client without it. The Bloodmoon hook is tested in the pack instead.
 
@@ -126,3 +129,7 @@ jar {
 }
 
 jar.finalizedBy('reobfJar')
+//Sources are UTF-8, whatever the system's encoding is
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}

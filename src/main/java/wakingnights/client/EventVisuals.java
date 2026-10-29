@@ -28,6 +28,10 @@ public class EventVisuals {
     private static final float FADE_OUT = 1000.0F;
     //How far a strike pulls the light outside towards the lightning colour
     private static final float LIGHTMAP_FLASH = 0.6F;
+    //Dimensions without a sky (nether, end): there's no light from the sky to tint, so all light is, this much
+    private static final float NO_SKY_LIGHT_TINT = 0.5F;
+    //...and their own fog colour shows through this much
+    private static final float NO_SKY_FOG = 0.7F;
 
     private static boolean active = false;
     private static float[] sky = new float[3];
@@ -36,8 +40,11 @@ public class EventVisuals {
     private static float[] lightning = new float[3];
     private static float[] light = {1.0F, 1.0F, 1.0F};
     private static float[] moon = {1.0F, 1.0F, 1.0F};
+    private static boolean snow = false;
+    //Set while vanilla (or a mod in its place) draws rain and snow, see BiomeMixin
+    private static boolean drawingWeather = false;
 
-    public static void set(boolean isActive, int skyColor, int fogColor, int cloudColor, int lightningColor, int lightColor, int moonColor) {
+    public static void set(boolean isActive, int skyColor, int fogColor, int cloudColor, int lightningColor, int lightColor, int moonColor, boolean isSnowy) {
         active = isActive;
         sky = toRgb(skyColor);
         fog = toRgb(fogColor);
@@ -45,11 +52,26 @@ public class EventVisuals {
         lightning = toRgb(lightningColor);
         light = toRgb(lightColor);
         moon = toRgb(moonColor);
+        snow = isSnowy;
     }
 
-    /** 0 = normal night, 1 = fully the night type's colours */
+    public static void setDrawingWeather(boolean drawing) {
+        drawingWeather = drawing;
+    }
+
+    /** The weather is being drawn during a snowy Waking Night in the overworld: biomes count as freezing for it */
+    public static boolean isDrawingSnow() {
+        if(!drawingWeather || !active || !snow) return false;
+        World world = Minecraft.getMinecraft().world;
+        return world != null && world.provider.isSurfaceWorld();
+    }
+
+    /**
+     * 0 = normal night, 1 = fully the night type's colours. The server only reports a night going on in the player's
+     * own dimension. Dimensions without a sky get what can show there: fog, light and lightning.
+     */
     public static float getProgress(World world, float partialTicks) {
-        if(!active || world == null || world.provider.getDimension() != 0) return 0.0F;
+        if(!active || world == null) return 0.0F;
         float time = (world.getWorldTime() % 24000L) + partialTicks;
         if(time < NightTracker.DUSK || time >= NightTracker.NIGHT_END) return 0.0F;
         float fadeIn = (time - NightTracker.DUSK) / (float) (NightTracker.NIGHTFALL - NightTracker.DUSK);
@@ -82,8 +104,10 @@ public class EventVisuals {
     public static void applyLightmap(World world, float sunBrightness, float skyLight, float[] colors) {
         float progress = getProgress(world, 1.0F);
         if(progress <= 0.0F) return;
-        //How much this entry is lit by the sky (0 underground, 1 in the open)
-        float exposure = MathHelper.clamp(skyLight / (sunBrightness * 0.95F + 0.05F), 0.0F, 1.0F);
+        //How much this entry is lit by the sky (0 underground, 1 in the open). Without a sky, all light is tinted a bit.
+        float exposure = world.provider.hasSkyLight()
+                ? MathHelper.clamp(skyLight / (sunBrightness * 0.95F + 0.05F), 0.0F, 1.0F)
+                : NO_SKY_LIGHT_TINT;
 
         float tint = exposure * progress;
         for(int i = 0; i < 3; i++) colors[i] *= 1.0F + (light[i] - 1.0F) * tint;
@@ -147,6 +171,7 @@ public class EventVisuals {
         float progress = getProgress(world, partialTicks);
         if(progress <= 0.0F) return;
         float flash = getFlash(world, partialTicks, progress);
+        if(!world.provider.isSurfaceWorld()) progress *= NO_SKY_FOG;
         float[] color = {event.getRed(), event.getGreen(), event.getBlue()};
         for(int i = 0; i < 3; i++) {
             color[i] += (fog[i] - color[i]) * progress;

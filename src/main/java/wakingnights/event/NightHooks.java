@@ -12,11 +12,18 @@ import java.util.function.Supplier;
  */
 public final class NightHooks {
     private static final Map<String, NightHook> HOOKS = new HashMap<>();
+    /**
+     * Lycanites Mobs is only compiled against: classes using it (LycanitesHook) may only be touched when this is true,
+     * or they fail to load
+     */
+    public static final boolean LYCANITES = Loader.isModLoaded("lycanitesmobs");
 
     private NightHooks() {}
 
     public static void init() {
         register("bloodmoon", "bloodmoon", BloodmoonHook::new);
+        //Not through register(): a method reference would load LycanitesHook even without Lycanites
+        if(LYCANITES) HOOKS.put("lycanites", new LycanitesHook());
     }
 
     private static void register(String id, String modId, Supplier<NightHook> hook) {

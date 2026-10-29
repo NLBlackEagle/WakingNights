@@ -9,6 +9,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityList;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.EntityLivingBase;
+import net.minecraft.entity.monster.IMob;
 import net.minecraft.potion.PotionEffect;
 import net.minecraft.util.EnumFacing;
 import net.minecraft.util.ResourceLocation;
@@ -24,10 +25,16 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import wakingnights.WakingNights;
+import wakingnights.event.LycanitesHook;
+import wakingnights.event.NightHooks;
 import wakingnights.handlers.ForgeConfigHandler;
 import wakingnights.level.NightTracker;
 import wakingnights.potion.PotionWakingNight;
 
+import javax.annotation.Nullable;
+
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 /**
@@ -59,6 +66,10 @@ public class Apparitions {
     private static final int GROUND_SEARCH_UP = 6;
     private static final int GROUND_SEARCH_DOWN = 8;
 
+    //Apparition Any Mob: tries to find a fitting mob, the biggest it may be, and the ids still worth trying
+    private static final int ANY_MOB_ATTEMPTS = 10;
+    private static final float MAX_ANY_WIDTH = 3.0F, MAX_ANY_HEIGHT = 4.0F;
+    private static List<ResourceLocation> anyMobIds;
     private static final Random RAND = new Random();
     private static EntityLiving ghost;
     private static int age;
@@ -114,14 +125,8 @@ public class Apparitions {
     }
 
     private static void spawn(EntityPlayerSP player) {
-        String[] ids = ForgeConfigHandler.client.apparitionEntities;
-        if(ids == null || ids.length == 0) return;
-        String id = ids[RAND.nextInt(ids.length)].trim();
-        Entity entity = EntityList.createEntityByIDFromName(new ResourceLocation(id), player.world);
-        if(!(entity instanceof EntityLiving)) {
-            WakingNights.LOGGER.warn("Apparition entity {} doesn't exist or isn't a mob", id);
-            return;
-        }
+        Entity entity = ForgeConfigHandler.client.apparitionAnyMob ? createAnyMob(player.world) : createListed(player.world);
+        if(entity == null) return;
 
         //Towards the edge of the screen, to one side of where the player looks, standing on the ground with room for it
         double[] halfFov = getHalfFov();
@@ -145,6 +150,54 @@ public class Apparitions {
         ghost = living;
         age = 0;
         fading = -1;
+    }
+
+    /** One of the Apparition Entities */
+    @Nullable
+    private static Entity createListed(World world) {
+        String[] ids = ForgeConfigHandler.client.apparitionEntities;
+        if(ids == null || ids.length == 0) return null;
+        String id = ids[RAND.nextInt(ids.length)].trim();
+        Entity entity = EntityList.createEntityByIDFromName(new ResourceLocation(id), world);
+        if(!(entity instanceof EntityLiving)) {
+            WakingNights.LOGGER.warn("Apparition entity {} doesn't exist or isn't a mob", id);
+            return null;
+        }
+        return entity;
+    }
+
+    /**
+     * Any hostile mob any mod registered, vanilla's, parasites, Lycanites creatures...: only drawn, never added to the world, so
+     * no mod's rules for it (like EagleMixins killing parasites) apply. Not bosses or anything huge, and not mobs that
+     * failed before (some can't be made outside the world)
+     */
+    @Nullable
+    private static Entity createAnyMob(World world) {
+        if(anyMobIds == null) anyMobIds = new ArrayList<>(EntityList.getEntityNameList());
+        for(int attempt = 0; attempt < ANY_MOB_ATTEMPTS && !anyMobIds.isEmpty(); attempt++) {
+            ResourceLocation id = anyMobIds.get(RAND.nextInt(anyMobIds.size()));
+            Entity entity;
+            try {
+                entity = EntityList.createEntityByIDFromName(id, world);
+            }
+            catch(RuntimeException | LinkageError e) {
+                anyMobIds.remove(id);
+                continue;
+            }
+            if(!(entity instanceof EntityLiving) || !isHostile(entity) || !entity.isNonBoss()
+                    || entity.width > MAX_ANY_WIDTH || entity.height > MAX_ANY_HEIGHT) {
+                //Never one: not asked again
+                anyMobIds.remove(id);
+                continue;
+            }
+            return entity;
+        }
+        return null;
+    }
+
+    /** Marked hostile the vanilla way, or a hostile Lycanites creature (those aren't marked) */
+    private static boolean isHostile(Entity entity) {
+        return entity instanceof IMob || (NightHooks.LYCANITES && LycanitesHook.isHostileCreature(entity));
     }
 
     /** Half the horizontal and vertical field of view, in degrees, from the FOV setting and the window's shape */
@@ -203,7 +256,14 @@ public class Apparitions {
         Minecraft mc = Minecraft.getMinecraft();
         RenderHelper.enableStandardItemLighting();
         mc.entityRenderer.enableLightmap();
-        mc.getRenderManager().renderEntityStatic(ghost, event.getPartialTicks(), false);
+        try {
+            mc.getRenderManager().renderEntityStatic(ghost, event.getPartialTicks(), false);
+        }
+        catch(RuntimeException e) {
+            //A mob that can't be drawn outside the world: gone, and never picked again
+            if(anyMobIds != null) anyMobIds.remove(EntityList.getKey(ghost));
+            ghost = null;
+        }
         mc.entityRenderer.disableLightmap();
         RenderHelper.disableStandardItemLighting();
     }

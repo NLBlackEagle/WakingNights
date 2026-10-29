@@ -1,5 +1,6 @@
 package wakingnights.client.growth;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.ModelBase;
 import net.minecraft.client.model.ModelBiped;
 import net.minecraft.client.model.ModelBox;
@@ -51,12 +52,36 @@ public class GrowthPlacement {
     private final Map<ModelRenderer, float[]> restPose = new HashMap<>();
     private final List<Face> faces = new ArrayList<>();
     private float totalWeight = 0;
+    private final int partCount;
+    private long checkedAt;
 
     public static GrowthPlacement get(ModelBase model) {
-        return PLACEMENTS.computeIfAbsent(model, GrowthPlacement::new);
+        GrowthPlacement placement = PLACEMENTS.get(model);
+        if(placement == null || placement.isOutdated(model)) {
+            placement = new GrowthPlacement(model);
+            PLACEMENTS.put(model, placement);
+        }
+        return placement;
+    }
+
+    /**
+     * Another mod swapped the model's parts since this was built: Mo' Bends adds its own parts to the model and stops
+     * drawing the vanilla ones (and puts them back when it's turned off). Checked at most once a second.
+     */
+    private boolean isOutdated(ModelBase model) {
+        if(model.boxList.size() != this.partCount) return true;
+        long now = Minecraft.getSystemTime();
+        if(this.faces.isEmpty() || now - this.checkedAt < 1000L) return false;
+        this.checkedAt = now;
+        for(Face face : this.faces) {
+            if(IRenderedPart.wasRendered(face.part)) return false;
+        }
+        return true;
     }
 
     private GrowthPlacement(ModelBase model) {
+        this.partCount = model.boxList.size();
+        this.checkedAt = Minecraft.getSystemTime();
         for(ModelRenderer part : model.boxList) {
             this.restPose.put(part, new float[]{part.rotationPointX, part.rotationPointY, part.rotationPointZ,
                     part.rotateAngleX, part.rotateAngleY, part.rotateAngleZ});
@@ -101,7 +126,9 @@ public class GrowthPlacement {
      * e.g. a lower arm still follows the upper arm.
      */
     public void applyPartTransform(ModelRenderer part, float scale) {
-        if(((IRenderedPart) part).wakingnights$loadRenderMatrix()) {
+        IRenderedPart rendered = (IRenderedPart) part;
+        if(rendered.wakingnights$loadRenderMatrix()) {
+            if(rendered.wakingnights$matrixIncludesPart()) return;
             GlStateManager.translate(part.offsetX, part.offsetY, part.offsetZ);
             part.postRender(scale);
             return;

@@ -4,6 +4,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityLiving;
 import net.minecraft.entity.ai.EntityAIBase;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.util.math.RayTraceResult;
 import net.minecraft.util.math.Vec3d;
 import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
@@ -28,6 +29,8 @@ public class FreezeWhenWatchedTask extends EntityAIBase {
     private static final double WATCH_RANGE = 32.0D;
     //Within this many degrees of looking straight at it counts as watching it
     private static final double WATCH_ANGLE = 15.0D;
+    //See-through blocks a look can pass (each one counts twice: going in and coming out)
+    private static final int MAX_SEE_THROUGH = 24;
     //World time each frozen mob was last held still
     private static final Map<Entity, Long> FROZEN = new WeakHashMap<>();
 
@@ -99,6 +102,24 @@ public class FreezeWhenWatchedTask extends EntityAIBase {
         if(distanceSq > WATCH_RANGE * WATCH_RANGE || distanceSq < minDistance * minDistance) return false;
         Vec3d toMob = new Vec3d(mob.posX, mob.posY + mob.height * 0.5D, mob.posZ).subtract(player.getPositionEyes(1.0F)).normalize();
         if(player.getLook(1.0F).dotProduct(toMob) < Math.cos(Math.toRadians(WATCH_ANGLE))) return false;
-        return mob.canEntityBeSeen(player);
+        return canSeeThrough(player, mob);
+    }
+
+    /**
+     * Like vanilla's line of sight, except see-through blocks (glass, ice, leaves, ...) don't block it: watching
+     * through a window freezes them too
+     */
+    private static boolean canSeeThrough(EntityPlayer player, EntityLiving mob) {
+        Vec3d from = player.getPositionEyes(1.0F);
+        Vec3d to = new Vec3d(mob.posX, mob.posY + mob.getEyeHeight(), mob.posZ);
+        Vec3d step = to.subtract(from).normalize().scale(0.05D);
+        for(int hits = 0; hits < MAX_SEE_THROUGH; hits++) {
+            RayTraceResult hit = player.world.rayTraceBlocks(from, to, false, true, false);
+            if(hit == null || hit.typeOfHit != RayTraceResult.Type.BLOCK) return true;
+            if(player.world.getBlockState(hit.getBlockPos()).getMaterial().isOpaque()) return false;
+            //Just past the see-through block, on to the next one
+            from = hit.hitVec.add(step);
+        }
+        return false;
     }
 }

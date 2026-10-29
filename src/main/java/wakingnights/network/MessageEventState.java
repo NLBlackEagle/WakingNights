@@ -18,6 +18,7 @@ public class MessageEventState implements IMessage {
     private int sky, fog, clouds, lightning;
     private int light = 0xFFFFFF;
     private int moon = 0xFFFFFF;
+    private boolean snow;
 
     public MessageEventState() {}
 
@@ -30,7 +31,19 @@ public class MessageEventState implements IMessage {
             this.lightning = type.lightning;
             this.light = type.light;
             this.moon = type.moon;
+            this.snow = type.snow;
         }
+    }
+
+    /** Other colours than the night type's, while something like a poopparty wave goes on */
+    public MessageEventState withColors(int sky, int fog, int clouds, int lightning, int light, int moon) {
+        this.sky = sky;
+        this.fog = fog;
+        this.clouds = clouds;
+        this.lightning = lightning;
+        this.light = light;
+        this.moon = moon;
+        return this;
     }
 
     @Override
@@ -42,6 +55,7 @@ public class MessageEventState implements IMessage {
         this.lightning = buf.readInt();
         this.light = buf.readInt();
         this.moon = buf.readInt();
+        this.snow = buf.readBoolean();
     }
 
     @Override
@@ -53,12 +67,13 @@ public class MessageEventState implements IMessage {
         buf.writeInt(this.lightning);
         buf.writeInt(this.light);
         buf.writeInt(this.moon);
+        buf.writeBoolean(this.snow);
     }
 
     public static class Handler implements IMessageHandler<MessageEventState, IMessage> {
         @Override
         public IMessage onMessage(MessageEventState message, MessageContext ctx) {
-            Minecraft.getMinecraft().addScheduledTask(() -> EventVisuals.set(message.active, message.sky, message.fog, message.clouds, message.lightning, message.light, message.moon));
+            Minecraft.getMinecraft().addScheduledTask(() -> EventVisuals.set(message.active, message.sky, message.fog, message.clouds, message.lightning, message.light, message.moon, message.snow));
             return null;
         }
     }
