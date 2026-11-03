@@ -66,10 +66,18 @@ public class ForgeConfigHandler {
 		@Config.Name("Comfort Effect")
 		public String comfortEffect = "chunkcomfort:comfort";
 
-		@Config.Comment("Percentage of a night a player has to be online and awake to count as staying awake (lowers the level by one)")
-		@Config.Name("Stay Awake Percentage")
+		@Config.Comment({
+				"Percentage of a normal night a player has to be online, awake and active (not AFK) to count as staying awake,",
+				"which lowers Waking Night I and II by one at dawn. 0: anyone online at dawn stays awake, AFK or not."
+		})
+		@Config.Name("Stay Awake Percentage Normal Nights")
 		@Config.RangeInt(min = 0, max = 100)
-		public int stayAwakePercentage = 75;
+		public int stayAwakePercentageNormal = 0;
+
+		@Config.Comment("Percentage of a Waking Night a player at Waking Night III has to be online, awake and active (not AFK) to survive it")
+		@Config.Name("Stay Awake Percentage Waking Nights")
+		@Config.RangeInt(min = 0, max = 100)
+		public int stayAwakePercentageWaking = 30;
 
 		@Config.Comment({
 				"Minutes without doing anything (looking around, walking, clicking, chatting) after which a player counts as AFK.",

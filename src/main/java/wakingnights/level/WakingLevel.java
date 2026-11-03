@@ -96,10 +96,10 @@ public final class WakingLevel {
         setCounter(player, level >= 2 ? getThresholds(player)[level - 2] : 0);
     }
 
-    /** After a Waking Night event: grace is over, and one more uncomfortable night means Waking Night III again. */
+    /** After a Waking Night event: grace is over, and the Waking Night is gone completely (Liquid Nightmares brings it back fast). */
     public static void survivedWakingNight(EntityPlayer player) {
         setInGrace(player, false);
-        setCounter(player, getThresholds(player)[MAX_LEVEL - 1] - 1);
+        setCounter(player, 0);
     }
 
     public static boolean isComfortable(EntityPlayer player) {

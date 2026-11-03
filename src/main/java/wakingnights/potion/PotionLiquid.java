@@ -19,7 +19,8 @@ import javax.annotation.Nullable;
 
 /**
  * The Waking potions:
- * - Liquid Dreams (white): while it lasts, the Waking Night level doesn't rise when a night is skipped (NightTracker)
+ * - Liquid Dreams (white): clears Waking Night I and II (not III), and while it lasts the level doesn't rise when a
+ *   night is skipped (NightTracker)
  * - Liquid Nightmares (black, instant): takes Liquid Dreams away, or without it raises the Waking Night level by one
  * Registered with potion types, so vanilla makes the drinkable, splash and lingering potions and tipped arrows.
  * Neither shows particles around the player.
@@ -28,8 +29,8 @@ public class PotionLiquid extends Potion {
     public static final PotionLiquid DREAMS = new PotionLiquid("liquid_dreams", false, 0xFFFFFF);
     public static final PotionLiquid NIGHTMARES = new PotionLiquid("liquid_nightmares", true, 0x000000);
 
-    //20 minutes. The potion has particles, or vanilla colours the bottle black; they're taken off the player (stripParticles)
-    public static final PotionType DREAMS_TYPE = new PotionType("liquid_dreams", new PotionEffect(DREAMS, 24000)).setRegistryName(WakingNights.MODID, "liquid_dreams");
+    //5 seconds. The potion has particles, or vanilla colours the bottle black; they're taken off the player (stripParticles)
+    public static final PotionType DREAMS_TYPE = new PotionType("liquid_dreams", new PotionEffect(DREAMS, 100)).setRegistryName(WakingNights.MODID, "liquid_dreams");
     public static final PotionType NIGHTMARES_TYPE = new PotionType("liquid_nightmares", new PotionEffect(NIGHTMARES)).setRegistryName(WakingNights.MODID, "liquid_nightmares");
 
     private static final ResourceLocation DREAMS_ICON = new ResourceLocation(WakingNights.MODID, "textures/effects/liquid_dreams.png");
@@ -48,12 +49,14 @@ public class PotionLiquid extends Potion {
 
     @Override
     public boolean isReady(int duration, int amplifier) {
-        return this == NIGHTMARES && duration >= 1;
+        //Liquid Dreams every tick it lasts, so it clears the level however it got onto the player
+        return this == DREAMS || duration >= 1;
     }
 
     @Override
     public void performEffect(EntityLivingBase entity, int amplifier) {
         if(this == NIGHTMARES) giveNightmares(entity);
+        else clearWakingNight(entity);
     }
 
     @Override
@@ -67,6 +70,14 @@ public class PotionLiquid extends Potion {
         if(effect == null || !effect.doesShowParticles()) return;
         //Merging an equal effect takes over its particle setting
         player.addPotionEffect(new PotionEffect(DREAMS, effect.getDuration(), effect.getAmplifier(), effect.getIsAmbient(), false));
+    }
+
+    /** Waking Night I and II are gone; III only goes away by surviving a Waking Night */
+    private static void clearWakingNight(EntityLivingBase entity) {
+        if(entity.world.isRemote || !(entity instanceof EntityPlayer)) return;
+        EntityPlayer player = (EntityPlayer) entity;
+        int level = WakingLevel.getLevel(player);
+        if(level > 0 && level < WakingLevel.MAX_LEVEL) WakingLevel.setCounter(player, 0);
     }
 
     private static void giveNightmares(EntityLivingBase entity) {

@@ -18,10 +18,11 @@ When a night is skipped, every online player is checked:
 ### Staying awake
 A normal night, not an event and not named: the mod just tracks each player through it.
 If the night is **not** skipped, every player who stayed awake through it drops one whole level at dawn.
-- **Exception, after a Waking Night event:** surviving it puts the counter just below III (normal thresholds: 7), so a
-  single uncomfortable night puts the player back at III. Comfort sleep or staying awake another night lowers it as usual.
-- "Stayed awake" = online, awake and active (not AFK) for at least 75% of the night (configurable).
-  A player who logged in late and stays awake keeps their level (no change).
+- **After a Waking Night event:** surviving it takes the Waking Night away completely (counter 0). Liquid Nightmares
+  is there to force it back to III fast.
+- "Stayed awake" on a normal night = online, awake and active (not AFK) for at least 0% of the night (configurable):
+  by default anyone online at dawn stays awake, AFK or not, and logging out costs nothing (it just doesn't drop).
+  With a higher percentage, a player who logged in late and stays awake can fall short and keep their level.
   A player who logged in late and the night gets skipped still gets the normal skip check (+1 without comfort).
 - AFK = nothing done for 5 minutes (configurable): no looking around, walking, clicking, chatting.
 - Optional config (off by default): the awake time only counts outside a comfort zone.
@@ -53,7 +54,7 @@ When the night is skipped, check the player's ChunkComfort effect (`chunkcomfort
 - ChunkComfort is looked up at runtime, not a build dependency. Without it, every sleep counts as uncomfortable.
 
 ### Other ways the level changes
-- Potion of Liquid Dreams: prevents the level from rising (does not lower it).
+- Potion of Liquid Dreams: clears Waking Night I and II completely (not III), and the level can't rise while it lasts.
 - Potion of Liquid Nightmares (instant): takes Liquid Dreams away; without it, one Waking Night level up (none → I → II → III).
 
 ## 2. Waking potions
@@ -61,12 +62,12 @@ When the night is skipped, check the player's ChunkComfort effect (`chunkcomfort
 | | Potion of Liquid Dreams | Potion of Liquid Nightmares |
 |---|---|---|
 | Tagline | "Makes sure you have a good night!" | "Makes sure you have a terrible night!" |
-| Effect | Level can't rise when you wake up, for 20 minutes. | Instant: removes Liquid Dreams, otherwise one Waking Night level up. |
+| Effect | Clears Waking Night I and II (not III); level can't rise when you wake up, for 5 seconds. | Instant: removes Liquid Dreams, otherwise one Waking Night level up. |
 | Herbalists | Sold for herbs | Sold for herbs |
 | Brewing | Awkward Potion + a configurable ingredient (none by default: herbalists only) | Awkward Potion + `biomesoplenty:flower_0:2` (configurable) |
 | Tooltip (configurable, & colour codes) | Gold: "Can be obtained through any Herbalist in the Herbalist Hut" | Gold: "An evil concoction brewed from the worst of flora found in biomes such as the Corrupted Scarlet Grove" |
 | Splash / lingering / tipped arrows | Yes (vanilla gives these for free) | Yes, so friends can troll each other right as they go to sleep |
-| Built | Effect + potion type `wakingnights:liquid_dreams`, white, own icon, 20 minutes, no particles | Instant effect + potion type `wakingnights:liquid_nightmares`, black, no icon (tipped arrows do nothing: instant effects get no arrow duration) |
+| Built | Effect + potion type `wakingnights:liquid_dreams`, white, own icon, 5 seconds, no particles | Instant effect + potion type `wakingnights:liquid_nightmares`, black, no icon (tipped arrows do nothing: instant effects get no arrow duration) |
 
 - When a night is skipped: comfort first (drop a level), then Liquid Dreams (no change), otherwise +1 night.
 
@@ -87,10 +88,11 @@ When the night is skipped, check the player's ChunkComfort effect (`chunkcomfort
   (falls back to `the_night_wakes.png`) and `startSound=` (bloodmoon_start, lycanites_start, blight_start; dread_start
   is there for The Dread).
 - Cannot be skipped.
-- **Waking Night III only goes away by surviving a Waking Night:** being active (not AFK) for 75% of the event night.
+- **Waking Night III only goes away by surviving a Waking Night:** being active (not AFK) for 30% of the event night
+  (configurable, separate from normal nights).
   Comfort sleep and staying awake on a normal night don't lower it.
   - Not active enough (AFK) or logged out: the player keeps III and faces the next one.
-  - Surviving puts the counter just below III and ends the grace period.
+  - Surviving takes the Waking Night away completely (counter 0) and ends the grace period.
 - Known consequence: as long as one online player isn't at III, there's no event, so a player at III stays at III.
 - Picks one night type (see below).
   - Each night type has a weight. The night picked last time has its weight divided by 3, so the same night rarely

@@ -3,7 +3,11 @@ package wakingnights.level;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.potion.Potion;
+import net.minecraft.util.text.ITextComponent;
+import net.minecraft.util.text.Style;
 import net.minecraft.util.text.TextComponentTranslation;
+import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
 import net.minecraftforge.common.DimensionManager;
 import net.minecraftforge.event.entity.player.PlayerSleepInBedEvent;
@@ -41,8 +45,8 @@ import java.util.Random;
  * A Waking Night event starts at dusk (same time as Bloodmoon) when every online player is at Waking Night III:
  * its night type is picked and the sky turns while the sun sets, a warning of what's coming.
  * Once the sun is gone (nightfall) it truly starts: the title, lightning.
- * Waking Night III only ever goes away by surviving one: being active for long enough during the event night.
- * Anyone who isn't (AFK, logged out) keeps it and faces the next one.
+ * Waking Night III only ever goes away by surviving one: being active for long enough during the event night,
+ * which takes the Waking Night away completely. Anyone who isn't (AFK, logged out) keeps it and faces the next one.
  */
 @Mod.EventBusSubscriber(modid = WakingNights.MODID)
 public class NightTracker {
@@ -148,9 +152,10 @@ public class NightTracker {
         return Math.floorDiv(time - timeOfDay, DAY_LENGTH) + 1;
     }
 
-    /** Whether a player was awake and active for enough of the night */
-    private static boolean stayedAwake(EntityPlayerMP player, long night) {
-        int required = (int) ((NIGHT_END - NIGHT_START) * ForgeConfigHandler.server.stayAwakePercentage / 100);
+    /** Whether a player was awake and active for enough of the night, a Waking Night or a normal one (own percentages) */
+    private static boolean stayedAwake(EntityPlayerMP player, long night, boolean wakingNight) {
+        int percentage = wakingNight ? ForgeConfigHandler.server.stayAwakePercentageWaking : ForgeConfigHandler.server.stayAwakePercentageNormal;
+        int required = (int) ((NIGHT_END - NIGHT_START) * percentage / 100);
         return WakingLevel.getAwakeTicks(player, night) >= required;
     }
 
@@ -161,15 +166,39 @@ public class NightTracker {
     public static void onNightSkipped(List<EntityPlayerMP> players) {
         for(EntityPlayerMP player : players) {
             if(WakingLevel.isComfortable(player)) WakingLevel.dropLevel(player);
-            else if(!player.isPotionActive(PotionLiquid.DREAMS)) WakingLevel.addNight(player);
+            else if(!player.isPotionActive(PotionLiquid.DREAMS)) {
+                int level = WakingLevel.getLevel(player);
+                WakingLevel.addNight(player);
+                int reached = WakingLevel.getLevel(player);
+                if(reached > level) tell(player, reachedMessage(reached), TextFormatting.DARK_PURPLE);
+            }
         }
+    }
+
+    /** What waking up at a new level tells the player; Waking Night I names the comfort they slept without */
+    private static TextComponentTranslation reachedMessage(int level) {
+        String key = "wakingnights.message.reached_" + level;
+        if(level != 1) return new TextComponentTranslation(key);
+        Potion comfort = WakingLevel.getPotion(ForgeConfigHandler.server.comfortEffect);
+        //Comfort IV: the effect's name and the tier as the game shows it
+        ITextComponent required = comfort == null
+                ? new TextComponentTranslation("wakingnights.message.comfort")
+                : new TextComponentTranslation(comfort.getName());
+        required.appendText(" ").appendSibling(new TextComponentTranslation("enchantment.level." + ForgeConfigHandler.server.minComfortTier));
+        return new TextComponentTranslation(key, required);
+    }
+
+    /** Too long for the action bar: these go to chat */
+    private static void tell(EntityPlayerMP player, TextComponentTranslation message, TextFormatting color) {
+        message.setStyle(new Style().setColor(color).setItalic(true));
+        player.sendMessage(message);
     }
 
     public static void onNightPassed(List<EntityPlayerMP> players, long night) {
         for(EntityPlayerMP player : players) {
             int level = WakingLevel.getLevel(player);
             //Waking Night III only goes away by surviving a Waking Night
-            if(level <= 0 || level >= WakingLevel.MAX_LEVEL || !stayedAwake(player, night)) continue;
+            if(level <= 0 || level >= WakingLevel.MAX_LEVEL || !stayedAwake(player, night, false)) continue;
             WakingLevel.dropLevel(player);
             //The message is about what's leaving them, so it goes by the level they had through the night
             player.sendStatusMessage(new TextComponentTranslation("wakingnights.message.stayed_awake_" + level), true);
@@ -283,12 +312,12 @@ public class NightTracker {
             if(WakingLevel.getLevel(player) < WakingLevel.MAX_LEVEL) {
                 normalNight.add(player);
             }
-            else if(stayedAwake(player, night)) {
+            else if(stayedAwake(player, night, true)) {
                 WakingLevel.survivedWakingNight(player);
-                player.sendStatusMessage(new TextComponentTranslation("wakingnights.message.night_survived"), true);
+                tell(player, new TextComponentTranslation("wakingnights.message.night_survived"), TextFormatting.GOLD);
             }
             else {
-                player.sendStatusMessage(new TextComponentTranslation("wakingnights.message.night_not_survived"), true);
+                tell(player, new TextComponentTranslation("wakingnights.message.night_not_survived"), TextFormatting.DARK_RED);
             }
         }
         onNightPassed(normalNight, night);
