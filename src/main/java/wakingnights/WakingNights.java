@@ -22,7 +22,7 @@ import wakingnights.proxy.CommonProxy;
 @Mod(modid = WakingNights.MODID, version = WakingNights.VERSION, name = WakingNights.NAME, dependencies = "required-after:fermiumbooter@[1.5.2,);required-after:geckolib3;")
 public class WakingNights {
     public static final String MODID = "wakingnights";
-    public static final String VERSION = "0.1.0";
+    public static final String VERSION = "0.1.1";
     public static final String NAME = "Waking Nights";
     public static final Logger LOGGER = LogManager.getLogger();
     public static boolean completedLoading = false;
