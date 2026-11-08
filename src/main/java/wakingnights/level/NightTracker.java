@@ -94,11 +94,14 @@ public class NightTracker {
             else onNightPassed(players, endedNight);
         }
 
-        if(passed(previous, time, DUSK) && !data.isEventActive() && allAtMaxLevel(players)) {
+        //Only when the clock is still in that part of the night: a jump over it (sleeping through a daytime
+        //thunderstorm lands the next morning) would otherwise start and announce one in the morning, and announce it
+        //again at nightfall. It starts at the next dusk instead.
+        if(passed(previous, time, DUSK) && isEvening(time) && !data.isEventActive() && allAtMaxLevel(players)) {
             startWakingNight(data, players);
         }
         if(data.isEventActive()) {
-            if(passed(previous, time, NIGHTFALL)) announceWakingNight(data, players);
+            if(passed(previous, time, NIGHTFALL) && isAfterNightfall(time)) announceWakingNight(data, players);
             float buildUp = getBuildUp(time);
             if(buildUp > 0.0F) EventLightning.tick(data, players, buildUp);
             if(isAfterNightfall(time)) {
@@ -123,6 +126,12 @@ public class NightTracker {
     public static boolean isNight(long time) {
         long timeOfDay = time % DAY_LENGTH;
         return timeOfDay >= NIGHT_START && timeOfDay < NIGHT_END;
+    }
+
+    /** From dusk until dawn: when a Waking Night can start */
+    private static boolean isEvening(long time) {
+        long timeOfDay = time % DAY_LENGTH;
+        return timeOfDay >= DUSK && timeOfDay < NIGHT_END;
     }
 
     /** The sun is gone and it isn't dawn yet: a Waking Night going on has truly started */

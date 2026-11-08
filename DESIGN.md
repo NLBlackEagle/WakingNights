@@ -126,9 +126,10 @@ When the night is skipped, check the player's ChunkComfort effect (`chunkcomfort
 - Lightning is visual only (no fire or damage), 16 to 80 blocks from each player. Dark colours are drawn with normal
   blending, since vanilla's additive lightning can't be darker than the sky behind it.
 - Additional spawns: each night type can have a weighted list of entities (`spawns=`, `spawnInterval=`, `spawnGroup=`,
-  `spawnCap=`, `spawnInSightAfter=`, `spawnCloseAtHalf=`): groups every few seconds; each spawn can be limited to a
-  part of the night (`<id> <weight> 70-100`), so the harder ones only join later (Blight and Dread: easy all night,
-  middle ones from 40%, the hardest from 70%, with low weights); that spawn around players once the sun is gone like vanilla spawning does: out of sight, 24 to 48 blocks
+  `spawnCap=`, `spawnInSightAfter=`, `spawnCloseAtHalf=`): groups every few seconds; each spawn can be held back until
+  the night has happened a few times (`<id> <weight> 3`: from the 3rd time on, counted per world), so the harder ones
+  only join later (Blight and Dread: easy ones from the 1st, middle ones from the 2nd, the hardest from the 3rd, with
+  low weights); that spawn around players once the sun is gone like vanilla spawning does: out of sight, 24 to 48 blocks
   away, on solid ground, not in lit places. Every one is blooded or blighted at random and hunts the player.
   - They're marked in their ForgeData: `EagleMixinsOverworldAllowed` (EagleMixins doesn't kill SRP mobs outside their biomes)
     and `wakingnights_event` = the night type. **They never outlive their night:** at dawn (or when another night
@@ -172,18 +173,16 @@ Night types are config entries (subtitle, lightning colour, optional mod hook, s
   carriers, light bombers). Lycanites event whitelists per dimension (`Lycanites Events Per Dimension`): Nether and End
   get their own fitting events; each dimension picks its own event per wave.
 - Ramp per night type (): its own spawns' amount and strength the 1st, 2nd, ... time it happens (Blight
-  0.2/0.4/0.6/0.8/1.0, the rest 1.0), counted server-wide.
+  0.6/0.8/1.0, the rest 1.0), counted server-wide.
 - Hunting mobs (specials and a night's own spawns) don't push each other, so a crowd can't shove its own into lava.
 - Which mobs can turn special depends on the night type (`specialMobs=`): Bloodmoon any hostile mob, Lycanites only
   Lycanites creatures (`lycanitesmobs:*`), the Blight only parasites (`srparasites:*`), the Dread only dread mobs
   (`iceandfire:dread_*`).
-- Tougher (attribute modifiers, configurable): health x1.5, attack damage x1.25, speed x1.15, +50% knockback
-  resistance, +4 armor.
+- Tougher (configurable): health x1.5, speed x1.15, armor x1.5, +50% knockback resistance (attribute modifiers),
+  melee damage x1.25 (applied when the hit lands, for any mod's mobs; projectiles aren't boosted).
 - Hits (also arrows) give effects, a list of `<potion> <amplifier> <ticks>`, default `srparasites:bleed 0 100`
   (5 seconds of bleeding). A night type can have its own with `hitEffects=a;b`.
 - Walking special mobs break wooden doors (vanilla rules: Hard difficulty, mobGriefing on).
-- Freeze when watched (off by default, it made things too easy): a player looking straight at one (and seen by it) makes it stop dead and stare back, no moving
-  or attacking until they look away. Not within 6 blocks, where it fights as usual.
 - Their growths and particles glow in the dark (fully lit), so they can be spotted from afar.
 - Special mobs always know where the nearest player is (within 128 blocks) and hunt them for as long as the Waking
   Night lasts: their own AI stays active (they may switch to another player they see, or to whatever hurt them), and

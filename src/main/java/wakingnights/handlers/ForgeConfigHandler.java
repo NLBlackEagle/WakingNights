@@ -176,8 +176,8 @@ public class ForgeConfigHandler {
 				"despawn: whether those special mobs vanish at dawn (true or false).",
 				"startSound: sound played all around every player when the night truly starts, alongside its banner",
 				"(textures/gui/events/<id>.png). Optional: hitEffects=<potion> <amplifier> <ticks>;... (see Special Mob Hit Effects).",
-				"Optional own spawns once the sun is gone: spawns=<entity id> <weight> [<from>-<to>];... in groups around each",
-				"player (from-to: only from that percent of the night to that percent, e.g. 70-100 for the last part only):",
+				"Optional own spawns once the sun is gone: spawns=<entity id> <weight> [<from>];... in groups around each",
+				"player (from: only from that time the night happens on, counted per world, e.g. 3 for the 3rd time and after; left out, from the 1st):",
 				"spawnInterval=<seconds or min-max> between groups, spawnGroup=<count or min-max> per group, spawnCap=<count or",
 				"min-max> most around each player (a range is picked once per night). Out of sight at first; spawnInSightAfter=<seconds>",
 				"after nightfall they may also spawn in view, and with spawnCloseAtHalf=true closer and closer, with no distance",
@@ -205,18 +205,18 @@ public class ForgeConfigHandler {
 				"id=blight, weight=0.25, sky=000000, fog=000000, clouds=000000, lightning=7A2AB0, light=5A2E2E, moon=A04CFF, lightningPerMinute=6, thunderPitch=0.6, special=blighted, despawn=true, startSound=wakingnights:event.blight_start, specialMobs=srparasites:*, "
 						+ "spawns=srparasites:sim_human 10;srparasites:sim_villager 8;srparasites:sim_cow 6;srparasites:sim_pig 6;srparasites:sim_sheep 6;"
 						+ "srparasites:sim_wolf 6;srparasites:fer_human 4;srparasites:fer_villager 4;"
-						+ "srparasites:sim_enderman 3 40-100;srparasites:sim_adventurer 3 40-100;srparasites:sim_bigspider 2 40-100;srparasites:pri_arachnida 2 40-100;"
-						+ "srparasites:pri_longarms 2 70-100;srparasites:pri_manducater 1 70-100;srparasites:pri_bolster 1 70-100, "
-						+ "spawnInterval=3-5, spawnGroup=2-8, spawnCap=35, ramp=0.2;0.4;0.6;0.8;1.0, dimensions=0, "
+						+ "srparasites:sim_enderman 3 2;srparasites:sim_adventurer 3 2;srparasites:sim_bigspider 2 2;srparasites:pri_arachnida 2 2;"
+						+ "srparasites:pri_longarms 2 3;srparasites:pri_manducater 1 3;srparasites:pri_bolster 1 3, "
+						+ "spawnInterval=3-5, spawnGroup=2-8, spawnCap=35, ramp=0.6;0.8;1.0, dimensions=0, "
 						+ "spawns.1=srparasites:sim_human 8;srparasites:sim_villager 6;srparasites:sim_cow 4;srparasites:sim_pig 4;srparasites:sim_sheep 4;"
 						+ "srparasites:sim_wolf 4;srparasites:fer_human 3;srparasites:fer_villager 3;srparasites:pri_yelloweye 6;"
-						+ "srparasites:sim_enderman 6 40-100;srparasites:sim_adventurer 2 40-100;srparasites:sim_bigspider 2 40-100;srparasites:pri_arachnida 2 40-100;"
-						+ "srparasites:carrier_light 3 40-100;srparasites:carrier_flying 2 40-100;"
-						+ "srparasites:pri_longarms 2 70-100;srparasites:pri_manducater 1 70-100;srparasites:pri_bolster 1 70-100;"
-						+ "srparasites:carrier_heavy 1 70-100;srparasites:bomber_light 1 70-100",
+						+ "srparasites:sim_enderman 6 2;srparasites:sim_adventurer 2 2;srparasites:sim_bigspider 2 2;srparasites:pri_arachnida 2 2;"
+						+ "srparasites:carrier_light 3 2;srparasites:carrier_flying 2 2;"
+						+ "srparasites:pri_longarms 2 3;srparasites:pri_manducater 1 3;srparasites:pri_bolster 1 3;"
+						+ "srparasites:carrier_heavy 1 3;srparasites:bomber_light 1 3",
 				"id=dread, weight=0.25, sky=0A1640, fog=060C24, clouds=0A1030, lightning=40E0FF, light=C8E4FF, moon=40F0FF, lightningPerMinute=6, thunderPitch=0.6, special=mixed, despawn=true, startSound=wakingnights:event.dread_start, "
 						+ "spawns=iceandfire:dread_thrall 10;iceandfire:dread_ghoul 8;iceandfire:dread_scuttler 4;"
-						+ "iceandfire:dread_beast 3 40-100;iceandfire:dread_horse 2 40-100;iceandfire:dread_knight 2 70-100;iceandfire:dread_lich 1 70-100, "
+						+ "iceandfire:dread_beast 3 2;iceandfire:dread_horse 2 2;iceandfire:dread_knight 2 3;iceandfire:dread_lich 1 3, "
 						+ "spawnInterval=3-5, spawnGroup=2-8, spawnCap=25-45, spawnInSightAfter=30, spawnCloseAtHalf=true, spawnSpecialChance=12, weather=storm, snow=true, temperature=-5, specialMobs=iceandfire:dread_*, ramp=1.0;1.0;1.0;1.0;1.0, dimensions=0"
 		};
 
@@ -248,7 +248,7 @@ public class ForgeConfigHandler {
 		@Config.RangeDouble(min = 0.1)
 		public double specialHealthMultiplier = 1.5;
 
-		@Config.Comment("Special mobs' attack damage is multiplied by this")
+		@Config.Comment("Special mobs' melee damage is multiplied by this, whatever mod they're from (projectiles aren't)")
 		@Config.Name("Special Mob Damage Multiplier")
 		@Config.RangeDouble(min = 0.1)
 		public double specialDamageMultiplier = 1.25;
@@ -263,10 +263,10 @@ public class ForgeConfigHandler {
 		@Config.RangeDouble(min = 0.0, max = 1.0)
 		public double specialKnockbackResistance = 0.5;
 
-		@Config.Comment("Added to special mobs' armor")
-		@Config.Name("Special Mob Armor")
-		@Config.RangeDouble(min = 0.0)
-		public double specialArmor = 4.0;
+		@Config.Comment("Special mobs' armor is multiplied by this (mobs without armor get none)")
+		@Config.Name("Special Mob Armor Multiplier")
+		@Config.RangeDouble(min = 0.1)
+		public double specialArmorMultiplier = 1.5;
 
 		@Config.Comment({
 				"Effects special mobs give when they hit a player (also with arrows), as <potion id> <amplifier> <ticks>.",
@@ -296,15 +296,6 @@ public class ForgeConfigHandler {
 		@Config.Comment("If true, special mobs that walk can break wooden doors (only on Hard difficulty with mobGriefing on, like vanilla zombies)")
 		@Config.Name("Special Mobs Break Doors")
 		public boolean specialBreakDoors = true;
-
-		@Config.Comment("If true, a special mob a player looks straight at stops dead and stares back, until they look away")
-		@Config.Name("Special Mobs Freeze When Watched")
-		public boolean specialFreezeWhenWatched = false;
-
-		@Config.Comment("Closer than this (blocks), special mobs keep fighting even when watched")
-		@Config.Name("Special Mob Freeze Min Distance")
-		@Config.RangeDouble(min = 0.0)
-		public double specialFreezeMinDistance = 6.0;
 
 		@Config.Comment("How close to a player a mob has to spawn to be able to turn special for them, in blocks")
 		@Config.Name("Special Mob Range")

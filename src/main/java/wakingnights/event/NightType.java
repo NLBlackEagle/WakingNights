@@ -20,12 +20,12 @@ import java.util.Random;
  * special=blooded (blooded, blighted, mixed or none: what mobs that turn special during this night become), despawn=true,
  * hitEffects=srparasites:bleed 0 100;minecraft:slowness 0 60 (optional, overrides the Special Mob Hit Effects config),
  * startSound=wakingnights:event.bloodmoon_start (optional, played when the night truly starts),
- * spawns=srparasites:sim_human 10;srparasites:sim_enderman 2 40-100 (the last part: only from 40% to 100% of the night), spawnInterval=3-5, spawnGroup=2-8, spawnCap=35 (or 25-45),
+ * spawns=srparasites:sim_human 10;srparasites:sim_enderman 2 2 (the last part: only from the 2nd time the night happens), spawnInterval=3-5, spawnGroup=2-8, spawnCap=35 (or 25-45),
  * spawnSpecialChance=100, spawnInSightAfter=30, spawnCloseAtHalf=true (optional, its own spawns; spawns.1=... is the list for
  * dimension 1 instead), weather=none|rain|storm, snow=true (rain falls as snow everywhere, only drawn),
  * temperature=-5 (SimpleDifficulty temperature change while it lasts),
  * specialMobs=lycanitesmobs:*;iceandfire:dread_* (only these mobs turn special this night, all hostile ones if left out),
- * ramp=0.2;0.4;0.6;0.8;1.0 (its own spawns' amount and strength the 1st, 2nd, ... time it happens, the last value from then on),
+ * ramp=0.6;0.8;1.0 (its own spawns' amount and strength the 1st, 2nd, ... time it happens, the last value from then on),
  * dimensions=0;-1;1 (where it can happen; the overworld if left out. A dimension the picked night doesn't happen in gets
  * one of the night types that do, at the same time)
  */
@@ -156,13 +156,13 @@ public class NightType {
         return this.dimensionSpawns.getOrDefault(dimension, this.spawns);
     }
 
-    /** Entity ids with their weights, and the part of the night (from nightfall, 0 to 1) each comes in */
+    /** Entity ids with their weights, and from which time the night happens (1 = the first) each comes in */
     public static final class SpawnList {
         private final List<String> ids = new ArrayList<>();
         private final List<Double> weights = new ArrayList<>();
-        private final List<double[]> phases = new ArrayList<>();
+        private final List<Integer> fromTimes = new ArrayList<>();
 
-        /** <entity id> <weight> [<from>-<to> percent of the night];... */
+        /** <entity id> <weight> [<from time>];... */
         static SpawnList parse(String value) {
             SpawnList list = new SpawnList();
             for(String spawn : value.split(";")) {
@@ -170,28 +170,36 @@ public class NightType {
                 if(parts.length < 2) continue;
                 list.ids.add(parts[0]);
                 list.weights.add(Math.max(0.0D, Double.parseDouble(parts[1])));
-                int[] phase = parts.length > 2 ? parseRange(parts[2]) : new int[]{0, 100};
-                list.phases.add(new double[]{phase[0] / 100.0D, phase[1] / 100.0D});
+                list.fromTimes.add(parts.length > 2 ? parseFromTime(spawn, parts[2]) : 1);
             }
             return list;
+        }
+
+        /** The old part-of-night window (40-100) is no longer read: such a spawn comes in from the first time */
+        private static int parseFromTime(String spawn, String value) {
+            if(value.contains("-")) {
+                WakingNights.LOGGER.warn("Spawn '{}': part-of-night windows are no longer used, the last part is now from which time the night happens it comes in (e.g. 3); it comes in from the first time", spawn.trim());
+                return 1;
+            }
+            return Math.max(1, Integer.parseInt(value.trim()));
         }
 
         public boolean isEmpty() {
             return this.ids.isEmpty();
         }
 
-        /** A random entity id that comes in at this part of the night (0 to 1), by weight, null if there's none */
+        /** A random entity id that comes in by the given time the night happens (1 = the first), by weight, null if there's none */
         @Nullable
-        public String pick(Random rand, double nightPart) {
+        public String pick(Random rand, int timesHappened) {
             double total = 0;
             for(int i = 0; i < this.ids.size(); i++) {
-                if(this.comesIn(i, nightPart)) total += this.weights.get(i);
+                if(this.comesIn(i, timesHappened)) total += this.weights.get(i);
             }
             if(total <= 0) return null;
             double target = rand.nextDouble() * total;
             String last = null;
             for(int i = 0; i < this.ids.size(); i++) {
-                if(!this.comesIn(i, nightPart)) continue;
+                if(!this.comesIn(i, timesHappened)) continue;
                 last = this.ids.get(i);
                 target -= this.weights.get(i);
                 if(target < 0) return last;
@@ -199,9 +207,8 @@ public class NightType {
             return last;
         }
 
-        private boolean comesIn(int spawn, double nightPart) {
-            double[] phase = this.phases.get(spawn);
-            return nightPart >= phase[0] && nightPart <= phase[1];
+        private boolean comesIn(int spawn, int timesHappened) {
+            return timesHappened >= this.fromTimes.get(spawn);
         }
     }
 
@@ -349,7 +356,7 @@ public class NightType {
                     //Several separated by ";", "none" for no effects at all this night
                     case "hitEffects": hitEffects = HitEffect.parseAll(Arrays.asList(value.split(";"))); break;
                     case "startSound": startSound = value.isEmpty() || value.equals("none") ? null : value; break;
-                    //<entity id> <weight> [<from>-<to> percent of the night];...
+                    //<entity id> <weight> [<from time the night happens>];...
                     case "spawns": spawns = SpawnList.parse(value); break;
                     //Older entries: on average this many per minute, one at a time
                     case "spawnsPerMinute": {

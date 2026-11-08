@@ -69,8 +69,7 @@ public class HuntPlayerTask extends EntityAIBase {
             this.mob.setAttackTarget(this.target);
             current = this.target;
         }
-        //Being watched: it stays where it is (FreezeWhenWatchedTask)
-        if(FreezeWhenWatchedTask.isFrozen(this.mob) || --this.repath > 0) return;
+        if(--this.repath > 0) return;
         this.repath = REPATH_TICKS;
 
         //Seeing its target up close, its own attack AI does the rest. Otherwise it walks towards it, also when its own

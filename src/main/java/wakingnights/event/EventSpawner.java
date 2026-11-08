@@ -96,7 +96,8 @@ public final class EventSpawner {
             NightType type = typeId == null ? null : NightType.get(typeId);
             if(type == null || type.getSpawns(player.dimension).isEmpty() || type.spawnIntervalMax <= 0) continue;
             //The first few times this night happens, fewer of them (ramp)
-            double ramp = type.getRamp(data.getTimesHappened(type.id));
+            int times = data.getTimesHappened(type.id);
+            double ramp = type.getRamp(times);
             UUID id = player.getUniqueID();
             Long next = NEXT_GROUP.get(id);
             if(next != null && now < next) continue;
@@ -105,7 +106,7 @@ public final class EventSpawner {
             int room = cap - countAlive(player);
             if(room <= 0) continue;
             int group = Math.min(room, scale(type.spawnGroupMin + RAND.nextInt(type.spawnGroupMax - type.spawnGroupMin + 1), ramp));
-            spawnGroup(player.world, type, player, group, ramp);
+            spawnGroup(player.world, type, player, group, ramp, times);
         }
     }
 
@@ -129,7 +130,7 @@ public final class EventSpawner {
     }
 
     /** One spot around the player, the whole group around that spot */
-    private static void spawnGroup(World world, NightType type, EntityPlayer player, int size, double ramp) {
+    private static void spawnGroup(World world, NightType type, EntityPlayer player, int size, double ramp, int times) {
         Placement placement = getPlacement(world, type);
         BlockPos center = findSpot(world, player, placement);
         if(center == null) return;
@@ -138,13 +139,14 @@ public final class EventSpawner {
             BlockPos near = i == 0 ? center : findGround(world, center.add(RAND.nextInt(GROUP_SPREAD * 2 + 1) - GROUP_SPREAD, 0,
                     RAND.nextInt(GROUP_SPREAD * 2 + 1) - GROUP_SPREAD), 3);
             if(near == null) continue;
-            Entity mob = spawn(world, type, near, ramp);
+            Entity mob = spawn(world, type, near, ramp, times);
             if(mob != null) spawned.add(new WeakReference<>(mob));
         }
     }
 
-    private static Entity spawn(World world, NightType type, BlockPos pos, double ramp) {
-        String id = type.getSpawns(world.provider.getDimension()).pick(RAND, getNightPart(world));
+    /** times: which time this night happens (1 = the first), the spawns that come in by then can */
+    private static Entity spawn(World world, NightType type, BlockPos pos, double ramp, int times) {
+        String id = type.getSpawns(world.provider.getDimension()).pick(RAND, times);
         if(id == null) return null;
         Entity entity = EntityList.createEntityByIDFromName(new ResourceLocation(id), world);
         if(!(entity instanceof EntityLiving)) {
@@ -157,13 +159,22 @@ public final class EventSpawner {
         mob.onInitialSpawn(world.getDifficultyForLocation(pos), null);
         weaken(mob, ramp);
         //Marked before it joins the world, so EagleMixins already sees it and it's never in the world unmarked
-        mob.getEntityData().setBoolean(OVERWORLD_ALLOWED_TAG, true);
-        mob.getEntityData().setString(EVENT_TAG, type.id);
-        if(RAND.nextInt(100) < type.spawnSpecialChance) {
-            CapabilitySpecialEntityHandler.setType(mob, RAND.nextBoolean() ? SpecialType.BLOODED : SpecialType.BLIGHTED);
-        }
+        markAsOwn(mob, type);
         world.spawnEntity(mob);
         return mob;
+    }
+
+    /**
+     * Marks a mob as one of the night's own spawns, before it joins the world: EagleMixins leaves it alone, it goes
+     * when the night does, and spawnSpecialChance of them turn blooded or blighted at random. Also for what they make
+     * (ParasiteLineage).
+     */
+    public static void markAsOwn(Entity mob, NightType type) {
+        mob.getEntityData().setBoolean(OVERWORLD_ALLOWED_TAG, true);
+        mob.getEntityData().setString(EVENT_TAG, type.id);
+        if(RAND.nextInt(100) < type.spawnSpecialChance && !CapabilitySpecialEntityHandler.isSpecial(mob)) {
+            CapabilitySpecialEntityHandler.setType(mob, RAND.nextBoolean() ? SpecialType.BLOODED : SpecialType.BLIGHTED);
+        }
     }
 
     /** The first few times a night happens, its own spawns are weaker too (ramp): less health and damage, saved with them */
@@ -176,12 +187,6 @@ public final class EventSpawner {
             }
         }
         mob.setHealth(mob.getMaxHealth());
-    }
-
-    /** How far the night is, from nightfall (0) to dawn (1) */
-    private static double getNightPart(World world) {
-        double sinceNightfall = (NightTracker.getTime() % 24000L) - NightTracker.NIGHTFALL;
-        return Math.max(0.0D, Math.min(1.0D, sinceNightfall / (NightTracker.NIGHT_END - NightTracker.NIGHTFALL)));
     }
 
     /** How close to the player and whether in their sight, by how far the night is (spawnInSightAfter, spawnCloseAtHalf) */

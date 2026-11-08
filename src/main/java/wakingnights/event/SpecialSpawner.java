@@ -65,7 +65,9 @@ public final class SpecialSpawner {
     private static final UUID DAMAGE_ID = UUID.fromString("6b1f1d52-3c2a-4f0e-9a7e-1b4c2e5d8f02");
     private static final UUID SPEED_ID = UUID.fromString("6b1f1d52-3c2a-4f0e-9a7e-1b4c2e5d8f03");
     private static final UUID KNOCKBACK_ID = UUID.fromString("6b1f1d52-3c2a-4f0e-9a7e-1b4c2e5d8f04");
+    //The old flat armor bonus, only removed from mobs saved with it
     private static final UUID ARMOR_ID = UUID.fromString("6b1f1d52-3c2a-4f0e-9a7e-1b4c2e5d8f05");
+    private static final UUID ARMOR_MULTIPLIER_ID = UUID.fromString("6b1f1d52-3c2a-4f0e-9a7e-1b4c2e5d8f07");
     private static final Random RAND = new Random();
     private static final Map<UUID, PlayerTally> TALLIES = new HashMap<>();
     //What happened to the hostile spawns this Waking Night, for /wakingnights status
@@ -193,7 +195,6 @@ public final class SpecialSpawner {
         if(followRange != null && followRange.getBaseValue() < FOLLOW_RANGE) followRange.setBaseValue(FOLLOW_RANGE);
         applyBoosts(mob);
         mob.targetTasks.addTask(0, new HuntPlayerTask(mob));
-        mob.tasks.addTask(0, new FreezeWhenWatchedTask(mob));
         if(ForgeConfigHandler.server.specialBreakDoors) {
             //Zombies have their own door breaking, only switched off
             if(mob instanceof EntityZombie) ((EntityZombie) mob).setBreakDoorsAItask(true);
@@ -232,12 +233,21 @@ public final class SpecialSpawner {
         }
     }
 
-    /** Special mobs that hit a player (also with an arrow) give them the night's hit effects */
+    /**
+     * Special mobs' melee hits harder (Special Mob Damage Multiplier): any hit the mob itself lands, whatever mod it's
+     * from, but not its projectiles. Done here rather than with an attack damage modifier, as not every mod's mobs
+     * work out their melee damage from that attribute.
+     * Players they hit (also with an arrow) get the night's hit effects.
+     */
     @SubscribeEvent
     public static void onHurt(LivingHurtEvent event) {
-        if(!(event.getEntityLiving() instanceof EntityPlayer) || event.getEntityLiving().world.isRemote || event.getAmount() <= 0) return;
+        if(event.getEntityLiving().world.isRemote || event.getAmount() <= 0) return;
         Entity attacker = event.getSource().getTrueSource();
         if(!(attacker instanceof EntityLiving) || !CapabilitySpecialEntityHandler.isSpecial(attacker)) return;
+        if(event.getSource().getImmediateSource() == attacker && !event.getSource().isProjectile()) {
+            event.setAmount(event.getAmount() * (float) ForgeConfigHandler.server.specialDamageMultiplier);
+        }
+        if(!(event.getEntityLiving() instanceof EntityPlayer)) return;
 
         NightType type = NightType.get(WakingNightsWorldData.get(attacker.world).getType(attacker.dimension));
         List<HitEffect> effects = type != null && type.hitEffects != null
@@ -268,10 +278,15 @@ public final class SpecialSpawner {
 
     public static void applyBoosts(EntityLiving mob) {
         boolean healthAdded = addModifier(mob, SharedMonsterAttributes.MAX_HEALTH, HEALTH_ID, "Waking Nights health", ForgeConfigHandler.server.specialHealthMultiplier - 1.0D, 1);
-        addModifier(mob, SharedMonsterAttributes.ATTACK_DAMAGE, DAMAGE_ID, "Waking Nights damage", ForgeConfigHandler.server.specialDamageMultiplier - 1.0D, 1);
+        //Damage is multiplied when they hit (onHurt). Mobs saved with the old attack damage modifier lose it, or melee would count twice
+        IAttributeInstance damage = mob.getEntityAttribute(SharedMonsterAttributes.ATTACK_DAMAGE);
+        if(damage != null && damage.getModifier(DAMAGE_ID) != null) damage.removeModifier(DAMAGE_ID);
         addModifier(mob, SharedMonsterAttributes.MOVEMENT_SPEED, SPEED_ID, "Waking Nights speed", ForgeConfigHandler.server.specialSpeedMultiplier - 1.0D, 1);
         addModifier(mob, SharedMonsterAttributes.KNOCKBACK_RESISTANCE, KNOCKBACK_ID, "Waking Nights knockback resistance", ForgeConfigHandler.server.specialKnockbackResistance, 0);
-        addModifier(mob, SharedMonsterAttributes.ARMOR, ARMOR_ID, "Waking Nights armor", ForgeConfigHandler.server.specialArmor, 0);
+        //Mobs saved with the old flat armor bonus lose it for the multiplier
+        IAttributeInstance armor = mob.getEntityAttribute(SharedMonsterAttributes.ARMOR);
+        if(armor != null && armor.getModifier(ARMOR_ID) != null) armor.removeModifier(ARMOR_ID);
+        addModifier(mob, SharedMonsterAttributes.ARMOR, ARMOR_MULTIPLIER_ID, "Waking Nights armor", ForgeConfigHandler.server.specialArmorMultiplier - 1.0D, 1);
         if(healthAdded) mob.setHealth(mob.getMaxHealth());
     }
 
