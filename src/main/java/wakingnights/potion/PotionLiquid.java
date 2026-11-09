@@ -19,8 +19,7 @@ import javax.annotation.Nullable;
 
 /**
  * The Waking potions:
- * - Liquid Dreams (white): clears Waking Night I and II (not III), and while it lasts the level doesn't rise when a
- *   night is skipped (NightTracker)
+ * - Liquid Dreams (white): clears Waking Night I and II (not III), and while it lasts there is no Restless (Restless)
  * - Liquid Nightmares (black, instant): takes Liquid Dreams away, or without it raises the Waking Night level by one
  * Registered with potion types, so vanilla makes the drinkable, splash and lingering potions and tipped arrows.
  * Neither shows particles around the player.
@@ -77,7 +76,7 @@ public class PotionLiquid extends Potion {
         if(entity.world.isRemote || !(entity instanceof EntityPlayer)) return;
         EntityPlayer player = (EntityPlayer) entity;
         int level = WakingLevel.getLevel(player);
-        if(level > 0 && level < WakingLevel.MAX_LEVEL) WakingLevel.setCounter(player, 0);
+        if(level > 0 && level < WakingLevel.MAX_LEVEL) WakingLevel.setLevel(player, 0);
     }
 
     private static void giveNightmares(EntityLivingBase entity) {

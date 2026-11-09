@@ -8,6 +8,7 @@ import net.minecraft.util.SoundCategory;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.World;
 import net.minecraftforge.common.DimensionManager;
+import net.minecraftforge.event.entity.living.PotionEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.PlayerEvent;
@@ -24,9 +25,9 @@ import java.util.UUID;
 
 /**
  * What a player feels at each level:
- * I: spot sounds around them at night (a list per level, getting worse), II: plus random insomnia, III: plus no sleeping (see NightTracker)
+ * I: spot sounds around them, day and night (a list per level, getting worse), II: plus random insomnia at night, III: plus no sleeping (see NightTracker)
  * and background ambience at night, which everyone hears during a Waking Night.
- * Also keeps the Waking Night status icon in sync with the level.
+ * Also keeps the Waking Night status icon in sync with the level, and raises the level when the effect is applied again.
  */
 @Mod.EventBusSubscriber(modid = WakingNights.MODID)
 public class WakingEffects {
@@ -38,6 +39,8 @@ public class WakingEffects {
 
     //Tick each player hears the next background ambience at
     private static final Map<UUID, Long> NEXT_BACKGROUND = new HashMap<>();
+    //Our own icon updates aren't the effect being applied again
+    private static boolean settingIcon;
 
     @SubscribeEvent
     public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
@@ -47,29 +50,54 @@ public class WakingEffects {
         if(player.ticksExisted % 20 != 0) return;
 
         int level = WakingLevel.getLevel(player);
-        updateIcon(player, level);
+        showIcon(player, PotionWakingNight.INSTANCE, level);
         if(level >= WakingLevel.MAX_LEVEL && ForgeConfigHandler.server.levelThreeInsomnia) keepInsomnia(player);
+
+        Random rand = player.getRNG();
+        boolean check = level > 0 && player.ticksExisted % ForgeConfigHandler.server.effectCheckInterval == 0;
+        //Spot sounds day and night
+        if(check && rand.nextDouble() < ForgeConfigHandler.server.soundChance) playSound(player, level, rand);
 
         World overworld = DimensionManager.getWorld(0);
         if(overworld == null || !NightTracker.isNight(overworld.getWorldTime())) return;
-        Random rand = player.getRNG();
         tickBackground(player, level, overworld, rand);
-
-        if(level <= 0 || player.ticksExisted % ForgeConfigHandler.server.effectCheckInterval != 0) return;
-        if(rand.nextDouble() < ForgeConfigHandler.server.soundChance) playSound(player, level, rand);
-        if(level >= 2 && rand.nextDouble() < ForgeConfigHandler.server.insomniaChance) giveInsomnia(player);
+        if(check && level >= 2 && rand.nextDouble() < ForgeConfigHandler.server.insomniaChance) giveInsomnia(player);
     }
 
-    private static void updateIcon(EntityPlayerMP player, int level) {
-        PotionEffect current = player.getActivePotionEffect(PotionWakingNight.INSTANCE);
+    /** Shows an icon effect at a level (amplifier = level - 1), or takes it away at 0 */
+    static void showIcon(EntityPlayerMP player, Potion potion, int level) {
+        PotionEffect current = player.getActivePotionEffect(potion);
         if(level <= 0) {
-            if(current != null) player.removePotionEffect(PotionWakingNight.INSTANCE);
+            if(current != null) player.removePotionEffect(potion);
             return;
         }
         if(current != null && current.getAmplifier() == level - 1 && current.getDuration() > ICON_DURATION - 1200) return;
 
-        player.removePotionEffect(PotionWakingNight.INSTANCE);
-        player.addPotionEffect(new PotionEffect(PotionWakingNight.INSTANCE, ICON_DURATION, level - 1, true, false));
+        player.removePotionEffect(potion);
+        settingIcon = true;
+        try {
+            player.addPotionEffect(new PotionEffect(potion, ICON_DURATION, level - 1, true, false));
+        }
+        finally {
+            settingIcon = false;
+        }
+    }
+
+    /**
+     * The Waking Night effect applied from elsewhere (/effect, another mod): without a Waking Night, the player gets the
+     * level of the effect; with one, it goes up a level (at most III). The icon follows the level on the next update.
+     */
+    @SubscribeEvent
+    public static void onPotionAdded(PotionEvent.PotionAddedEvent event) {
+        if(settingIcon || !(event.getEntityLiving() instanceof EntityPlayerMP)) return;
+        PotionEffect effect = event.getPotionEffect();
+        if(effect.getPotion() != PotionWakingNight.INSTANCE) return;
+        EntityPlayerMP player = (EntityPlayerMP) event.getEntityLiving();
+        int level = WakingLevel.getLevel(player);
+        if(level <= 0) WakingLevel.setLevel(player, effect.getAmplifier() + 1);
+        else WakingLevel.raiseLevel(player);
+        int reached = WakingLevel.getLevel(player);
+        if(reached > level) NightTracker.tellReached(player, reached);
     }
 
     /** A spot sound from the player's level's list, so they get worse as the level rises */

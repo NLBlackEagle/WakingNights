@@ -12,6 +12,7 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.relauncher.Side;
 import wakingnights.WakingNights;
 import wakingnights.potion.PotionLiquid;
+import wakingnights.potion.PotionRestless;
 import wakingnights.potion.PotionWakingNight;
 
 /**
@@ -21,7 +22,7 @@ import wakingnights.potion.PotionWakingNight;
  */
 @Mod.EventBusSubscriber(modid = WakingNights.MODID, value = Side.CLIENT)
 public class WakingNightHud {
-    private static final Potion[] SHOWN = {PotionLiquid.DREAMS, PotionWakingNight.INSTANCE};
+    private static final Potion[] SHOWN = {PotionLiquid.DREAMS, PotionWakingNight.INSTANCE, PotionRestless.INSTANCE};
 
     @SubscribeEvent
     public static void onRenderOverlay(RenderGameOverlayEvent.Post event) {

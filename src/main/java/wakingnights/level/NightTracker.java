@@ -3,8 +3,6 @@ package wakingnights.level;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.entity.player.EntityPlayerMP;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.potion.Potion;
-import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.Style;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.util.text.TextFormatting;
@@ -90,7 +88,7 @@ public class NightTracker {
         if(passed(previous, time, NIGHT_END)) {
             long endedNight = timesPassed(time, NIGHT_END) - 1;
             if(data.isEventActive()) endWakingNight(data, players, endedNight);
-            else if(time - previous > SKIP_JUMP) onNightSkipped(players);
+            else if(time - previous > SKIP_JUMP) onNightSkipped(players, endedNight);
             else onNightPassed(players, endedNight);
         }
 
@@ -169,32 +167,20 @@ public class NightTracker {
     }
 
     /**
-     * Waking up from a skipped night: a comfortable bed drops a level, Liquid Dreams keeps the level where it is,
-     * anything else is one more night towards the next level.
+     * Waking up from a skipped night: a comfortable bed drops a level (not with a Restless item on, comfort doesn't
+     * help against those), Liquid Dreams keeps the level where it is, and having slept while Restless adds its levels
+     * (see Restless). Nothing else raises it.
      */
-    public static void onNightSkipped(List<EntityPlayerMP> players) {
+    public static void onNightSkipped(List<EntityPlayerMP> players, long night) {
         for(EntityPlayerMP player : players) {
-            if(WakingLevel.isComfortable(player)) WakingLevel.dropLevel(player);
-            else if(!player.isPotionActive(PotionLiquid.DREAMS)) {
-                int level = WakingLevel.getLevel(player);
-                WakingLevel.addNight(player);
-                int reached = WakingLevel.getLevel(player);
-                if(reached > level) tell(player, reachedMessage(reached), TextFormatting.DARK_PURPLE);
-            }
+            if(WakingLevel.isComfortable(player) && Restless.get(player).itemLevel <= 0) WakingLevel.dropLevel(player);
+            else if(!player.isPotionActive(PotionLiquid.DREAMS)) Restless.onNightSkipped(player, night);
         }
     }
 
-    /** What waking up at a new level tells the player; Waking Night I names the comfort they slept without */
-    private static TextComponentTranslation reachedMessage(int level) {
-        String key = "wakingnights.message.reached_" + level;
-        if(level != 1) return new TextComponentTranslation(key);
-        Potion comfort = WakingLevel.getPotion(ForgeConfigHandler.server.comfortEffect);
-        //Comfort IV: the effect's name and the tier as the game shows it
-        ITextComponent required = comfort == null
-                ? new TextComponentTranslation("wakingnights.message.comfort")
-                : new TextComponentTranslation(comfort.getName());
-        required.appendText(" ").appendSibling(new TextComponentTranslation("enchantment.level." + ForgeConfigHandler.server.minComfortTier));
-        return new TextComponentTranslation(key, required);
+    /** What reaching a new level tells the player */
+    public static void tellReached(EntityPlayerMP player, int level) {
+        tell(player, new TextComponentTranslation("wakingnights.message.reached_" + level), TextFormatting.DARK_PURPLE);
     }
 
     /** Too long for the action bar: these go to chat */

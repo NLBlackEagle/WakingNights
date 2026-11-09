@@ -7,6 +7,7 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import wakingnights.WakingNights;
 import wakingnights.potion.PotionLiquid;
+import wakingnights.potion.PotionRestless;
 import wakingnights.potion.PotionWakingNight;
 
 @Mod.EventBusSubscriber(modid = WakingNights.MODID)
@@ -19,6 +20,7 @@ public class ModRegistry {
         @SubscribeEvent
         public static void registerPotionEvent(RegistryEvent.Register<Potion> event) {
                 event.getRegistry().register(PotionWakingNight.INSTANCE);
+                event.getRegistry().register(PotionRestless.INSTANCE);
                 event.getRegistry().register(PotionLiquid.DREAMS);
                 event.getRegistry().register(PotionLiquid.NIGHTMARES);
         }

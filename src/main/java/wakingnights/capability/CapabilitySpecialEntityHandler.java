@@ -16,6 +16,7 @@ import net.minecraftforge.event.AttachCapabilitiesEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import wakingnights.WakingNights;
+import wakingnights.event.SpecialSpawner;
 import wakingnights.network.MessageSpecialEntity;
 import wakingnights.network.PacketHandler;
 
@@ -51,6 +52,7 @@ public class CapabilitySpecialEntityHandler {
         ICapabilitySpecialEntity cap = entity.getCapability(CAP_SPECIAL_ENTITY, null);
         if(cap == null) return;
         cap.setType(type);
+        if(!entity.world.isRemote) SpecialSpawner.applyNbt(entity, type);
         PacketHandler.INSTANCE.sendToAllTracking(new MessageSpecialEntity(entity, type), entity);
     }
 

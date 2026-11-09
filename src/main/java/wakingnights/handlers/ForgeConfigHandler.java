@@ -40,23 +40,31 @@ public class ForgeConfigHandler {
 		public boolean enableSRParasitesMixin = true;
 
 		@Config.Comment({
-				"Nights needed for Waking Night I, II and III after a player's grace period.",
-				"Must contain exactly 3 increasing values."
+				"Biomes that make players Restless, as <biome id>,<restless level 1-3>,<trigger>.",
+				"Restless is shown as an effect while in the biome, a warning: sleeping there adds its level to the player's",
+				"Waking Night (Restless II at Waking Night I: Waking Night III). Trigger 1: sleeping. Trigger 2: also",
+				"right-clicking any bed there (raised right away). At most once per night.",
+				"Restless from the biome and Restless Items add up, at most III. Liquid Dreams and comfort (Minimum Comfort",
+				"Tier) cancel the biome's. Nothing else raises the Waking Night but Liquid Nightmares and the effect applied again.",
+				"Example: biomesoplenty:wasteland,2,1"
 		})
-		@Config.Name("Waking Night Thresholds")
-		public int[] thresholds = {3, 5, 8};
+		@Config.Name("Restless Biomes")
+		public String[] restlessBiomes = {};
 
 		@Config.Comment({
-				"Nights needed for Waking Night I, II and III during a player's grace period,",
-				"which lasts until they have been through their first Waking Night event.",
-				"Must contain exactly 3 increasing values."
+				"Items that make players Restless while equipped, as <item id>[:<metadata>],<restless level 1-3>,<slot>.",
+				"slot: armor (worn), hand (main hand or off hand) or bauble (Baubles slots). Every equipped one adds its level",
+				"to the biome's Restless, at most III. They count when sleeping, and when right-clicking a bed in a trigger 2",
+				"biome. Comfort doesn't cancel them (sleeping comfortably with one adds its level instead of dropping one),",
+				"Liquid Dreams does. Items from mods that aren't installed are skipped. Example: minecraft:skull:1,1,armor"
 		})
-		@Config.Name("Grace Period Thresholds")
-		public int[] graceThresholds = {5, 9, 14};
+		@Config.Name("Restless Items")
+		public String[] restlessItems = {};
 
 		@Config.Comment({
 				"Lowest comfort tier (as shown in game, Comfort I = 1) that counts as a comfortable night.",
-				"At or above it, a skipped night lowers the Waking Night level by one. Below it, the counter goes up by one."
+				"At or above it, a skipped night lowers the Waking Night level by one (not with a Restless item on),",
+				"and biomes don't make players Restless."
 		})
 		@Config.Name("Minimum Comfort Tier")
 		@Config.RangeInt(min = 1, max = 100)
@@ -97,7 +105,7 @@ public class ForgeConfigHandler {
 		public int effectCheckInterval = 200;
 
 		@Config.Comment({
-				"Spot sounds that randomly play somewhere near players at Waking Night I, at night.",
+				"Spot sounds that randomly play somewhere near players at Waking Night I, day and night.",
 				"Format: <sound id> or <sound id>=<volume, 0 to 1>. Any sound id works; wakingnights:insomnia picks one of its sounds at random each time.",
 				"The default volumes bring every sound to about the same loudness (that of the quietest, footsteps on wood)."
 		})
@@ -110,7 +118,7 @@ public class ForgeConfigHandler {
 				"minecraft:ambient.cave=0.4"
 		};
 
-		@Config.Comment("Spot sounds that randomly play somewhere near players at Waking Night II, at night. Same format as Waking Night I.")
+		@Config.Comment("Spot sounds that randomly play somewhere near players at Waking Night II, day and night. Same format as Waking Night I.")
 		@Config.Name("Waking Night II Sounds")
 		public String[] levelTwoSounds = {
 				"minecraft:entity.zombie.ambient=0.51",
@@ -121,7 +129,7 @@ public class ForgeConfigHandler {
 				"wakingnights:insomnia=1.0"
 		};
 
-		@Config.Comment("Spot sounds that randomly play somewhere near players at Waking Night III, at night. Same format as Waking Night I.")
+		@Config.Comment("Spot sounds that randomly play somewhere near players at Waking Night III, day and night. Same format as Waking Night I.")
 		@Config.Name("Waking Night III Sounds")
 		public String[] levelThreeSounds = {
 				"minecraft:entity.zombie.attack_door_wood=0.17",
@@ -293,6 +301,29 @@ public class ForgeConfigHandler {
 				"wardlights:blight_essence 100"
 		};
 
+		@Config.Comment({
+				"If true, mobs that turn blooded or blighted get the NBT from Blooded NBT / Blighted NBT added to their ForgeData,",
+				"once, when they turn special (it's saved with them)."
+		})
+		@Config.Name("Special Mob NBT Enabled")
+		public boolean specialNbtEnabled = false;
+
+		@Config.Comment({
+				"NBT added to the ForgeData of mobs that turn blooded (needs Special Mob NBT Enabled), one compound per line,",
+				"as you'd write it inside ForgeData:{...} in a /summon. Nested compounds are merged with what the mob already has.",
+				"Example: {EagleMixinsLeap:{maxRange:10.0d, chance:0.3d}}"
+		})
+		@Config.Name("Blooded NBT")
+		public String[] bloodedNbt = {};
+
+		@Config.Comment({
+				"NBT added to the ForgeData of mobs that turn blighted (needs Special Mob NBT Enabled), one compound per line,",
+				"as you'd write it inside ForgeData:{...} in a /summon. Nested compounds are merged with what the mob already has.",
+				"Example: {EagleMixinsLeap:{maxRange:10.0d, chance:0.3d}}"
+		})
+		@Config.Name("Blighted NBT")
+		public String[] blightedNbt = {};
+
 		@Config.Comment("If true, special mobs that walk can break wooden doors (only on Hard difficulty with mobGriefing on, like vanilla zombies)")
 		@Config.Name("Special Mobs Break Doors")
 		public boolean specialBreakDoors = true;
@@ -436,12 +467,17 @@ public class ForgeConfigHandler {
 		};
 
 		@Config.Comment({
-				"At Waking Night II, a see-through figure very rarely appears at the edge of your sight at night, and is gone",
-				"when you look straight at it. On average once per this many minutes spent at Waking Night II at night. 0 turns it off."
+				"At Waking Night II, a see-through figure appears at the edge of your sight, day or night, and is gone when you",
+				"look straight at it. The next one comes this many minutes after the last (picked at random between min and max),",
+				"counting only time spent at Waking Night II. Max 0 turns it off."
 		})
-		@Config.Name("Apparition Average Minutes")
+		@Config.Name("Apparition Min Minutes")
 		@Config.RangeDouble(min = 0.0)
-		public double apparitionAverageMinutes = 60.0;
+		public double apparitionMinMinutes = 2.0;
+
+		@Config.Name("Apparition Max Minutes")
+		@Config.RangeDouble(min = 0.0)
+		public double apparitionMaxMinutes = 5.0;
 
 		@Config.Comment({
 				"If true, the apparition can look like any hostile mob any mod registered (parasites, Lycanites creatures, ...), not",

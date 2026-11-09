@@ -27,6 +27,7 @@ import wakingnights.event.NightType;
 import wakingnights.event.SpecialSpawner;
 import wakingnights.level.ActivityTracker;
 import wakingnights.level.NightTracker;
+import wakingnights.level.Restless;
 import wakingnights.level.WakingLevel;
 import wakingnights.level.WakingNightsWorldData;
 import wakingnights.network.MessageApparition;
@@ -41,8 +42,7 @@ import java.util.Locale;
 /**
  * Debug command:
  * /wakingnights info [player]
- * /wakingnights set <player> <nights>
- * /wakingnights grace <player> <true|false>
+ * /wakingnights set <player> <level 0-3>
  * /wakingnights skip            - runs the skipped-night check for everyone online
  * /wakingnights awake           - runs the stayed-awake check for the current night
  * /wakingnights start [type] | end - starts (a random or the given night type) or ends a Waking Night event
@@ -52,7 +52,7 @@ import java.util.Locale;
  */
 public class CommandWakingNights extends CommandBase {
 
-    private static final String USAGE = "/wakingnights <info|set|grace|skip|awake|start|end|special|apparition|status|lycanites|hunters|whoblocks>";
+    private static final String USAGE = "/wakingnights <info|set|skip|awake|start|end|special|apparition|status|lycanites|hunters|whoblocks>";
 
     @Override
     public String getName() {
@@ -82,21 +82,14 @@ public class CommandWakingNights extends CommandBase {
                 break;
             }
             case "set": {
-                if(args.length < 3) throw new WrongUsageException("/wakingnights set <player> <nights>");
+                if(args.length < 3) throw new WrongUsageException("/wakingnights set <player> <level 0-3>");
                 EntityPlayerMP player = getPlayer(server, sender, args[1]);
-                WakingLevel.setCounter(player, parseInt(args[2], 0));
-                sendInfo(sender, player);
-                break;
-            }
-            case "grace": {
-                if(args.length < 3) throw new WrongUsageException("/wakingnights grace <player> <true|false>");
-                EntityPlayerMP player = getPlayer(server, sender, args[1]);
-                WakingLevel.setInGrace(player, parseBoolean(args[2]));
+                WakingLevel.setLevel(player, parseInt(args[2], 0, WakingLevel.MAX_LEVEL));
                 sendInfo(sender, player);
                 break;
             }
             case "skip":
-                NightTracker.onNightSkipped(players);
+                NightTracker.onNightSkipped(players, overworld.getWorldTime() / 24000);
                 sender.sendMessage(new TextComponentString("Ran the skipped-night check for " + players.size() + " player(s)"));
                 break;
             case "awake":
@@ -233,22 +226,21 @@ public class CommandWakingNights extends CommandBase {
     }
 
     private static void sendInfo(ICommandSender sender, EntityPlayerMP player) {
-        int[] thresholds = WakingLevel.getThresholds(player);
         long night = DimensionManager.getWorld(0).getWorldTime() / 24000;
+        Restless.State restless = Restless.get(player);
         sender.sendMessage(new TextComponentString(String.format(
-                "%s: Waking Night %d, %d night(s), thresholds %d/%d/%d%s, comfortable: %s, active: %s, awake this night: %ds",
-                player.getName(), WakingLevel.getLevel(player), WakingLevel.getCounter(player),
-                thresholds[0], thresholds[1], thresholds[2], WakingLevel.isInGrace(player) ? " (grace)" : "",
+                "%s: Waking Night %d, Restless %d%s%s, comfortable: %s, active: %s, awake this night: %ds",
+                player.getName(), WakingLevel.getLevel(player), restless.level, restless.bedTrigger ? " (bed click too)" : "",
+                WakingLevel.isRestlessDone(player, night) ? " (used this night)" : "",
                 WakingLevel.isComfortable(player), ActivityTracker.isActive(player), WakingLevel.getAwakeTicks(player, night) / 20)));
     }
 
     @Override
     public List<String> getTabCompletions(MinecraftServer server, ICommandSender sender, String[] args, @Nullable BlockPos targetPos) {
-        if(args.length == 1) return getListOfStringsMatchingLastWord(args, "info", "set", "grace", "skip", "awake", "start", "end", "special", "apparition", "status", "lycanites", "hunters", "whoblocks");
-        if(args.length == 2 && (args[0].equals("info") || args[0].equals("set") || args[0].equals("grace"))) {
+        if(args.length == 1) return getListOfStringsMatchingLastWord(args, "info", "set", "skip", "awake", "start", "end", "special", "apparition", "status", "lycanites", "hunters", "whoblocks");
+        if(args.length == 2 && (args[0].equals("info") || args[0].equals("set"))) {
             return getListOfStringsMatchingLastWord(args, server.getOnlinePlayerNames());
         }
-        if(args.length == 3 && args[0].equals("grace")) return getListOfStringsMatchingLastWord(args, "true", "false");
         if(args.length == 2 && args[0].equals("special")) return getListOfStringsMatchingLastWord(args, "blooded", "blighted", "none");
         if(args.length == 2 && args[0].equals("start")) {
             List<String> ids = new ArrayList<>();

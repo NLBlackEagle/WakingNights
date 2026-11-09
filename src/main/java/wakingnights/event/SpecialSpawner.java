@@ -8,6 +8,8 @@ import net.minecraft.entity.IRangedAttackMob;
 import net.minecraft.entity.item.EntityItem;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.JsonToNBT;
+import net.minecraft.nbt.NBTException;
 import net.minecraft.entity.SharedMonsterAttributes;
 import net.minecraft.entity.ai.EntityAIBreakDoor;
 import net.minecraft.entity.ai.EntityAITasks;
@@ -36,6 +38,7 @@ import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import wakingnights.WakingNights;
 import wakingnights.capability.CapabilitySpecialEntityHandler;
 import wakingnights.capability.SpecialType;
+import wakingnights.compat.EagleMixinsLeap;
 import wakingnights.handlers.ForgeConfigHandler;
 import wakingnights.level.NightTracker;
 import wakingnights.level.WakingNightsWorldData;
@@ -203,6 +206,27 @@ public final class SpecialSpawner {
                 mob.tasks.addTask(1, new EntityAIBreakDoor(mob));
             }
         }
+    }
+
+    /**
+     * Adds the Blooded / Blighted NBT to a mob's ForgeData as it turns special (Special Mob NBT Enabled). Done once,
+     * it's saved with the mob. Mobs that turn special before joining the world (most) have it in time for mods that
+     * read it on join, like EagleMixins' leap.
+     */
+    public static void applyNbt(Entity entity, SpecialType type) {
+        if(!ForgeConfigHandler.server.specialNbtEnabled || type == SpecialType.NONE) return;
+        String[] entries = type == SpecialType.BLOODED ? ForgeConfigHandler.server.bloodedNbt : ForgeConfigHandler.server.blightedNbt;
+        for(String entry : entries) {
+            if(entry.trim().isEmpty()) continue;
+            try {
+                entity.getEntityData().merge(JsonToNBT.getTagFromJson(entry.trim()));
+            }
+            catch(NBTException e) {
+                WakingNights.LOGGER.warn("Invalid special mob NBT: {} ({})", entry, e.getMessage());
+            }
+        }
+        //Already in the world (Lycanites, the command): EagleMixins missed the tag on join, so it looks again
+        if(entity.addedToChunk && entity instanceof EntityLiving) EagleMixinsLeap.recheck((EntityLiving) entity);
     }
 
     /** Special mobs killed by a player drop their kind's rewards (Blooded / Blighted Drops) */

@@ -28,7 +28,6 @@ import wakingnights.WakingNights;
 import wakingnights.event.LycanitesHook;
 import wakingnights.event.NightHooks;
 import wakingnights.handlers.ForgeConfigHandler;
-import wakingnights.level.NightTracker;
 import wakingnights.potion.PotionWakingNight;
 
 import javax.annotation.Nullable;
@@ -38,7 +37,7 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * At Waking Night II, very rarely, a ghostly figure stands at the edge of the player's screen at night, in plain view:
+ * At Waking Night II, every few minutes, a ghostly figure stands at the edge of the player's screen, day or night, in plain view:
  * a see-through mob that keeps watching them as they move, doing nothing else. It's gone the moment they look straight at it.
  * Only that player sees it: it exists on their client alone (never in the world, no AI) and is drawn here.
  */
@@ -75,6 +74,9 @@ public class Apparitions {
     private static int age;
     //Ticks since it started fading out, -1 while it isn't
     private static int fading = -1;
+    //Ticks at Waking Night II until the next one, -1 until it's picked
+    private static int untilNext = -1;
+    private static final int RETRY_TICKS = 200;
 
     @SubscribeEvent
     public static void onClientTick(TickEvent.ClientTickEvent event) {
@@ -89,11 +91,20 @@ public class Apparitions {
             tickGhost(mc.player);
             return;
         }
-        if(getLevel(mc.player) != LEVEL || !isNight(mc.world)) return;
-        double averageTicks = ForgeConfigHandler.client.apparitionAverageMinutes * 1200.0D;
-        if(averageTicks > 0 && RAND.nextDouble() < 1.0D / averageTicks) {
-            for(int attempt = 0; attempt < SPAWN_ATTEMPTS && ghost == null; attempt++) spawn(mc.player);
-        }
+        if(getLevel(mc.player) != LEVEL) return;
+        if(ForgeConfigHandler.client.apparitionMaxMinutes <= 0) return;
+        if(untilNext < 0) untilNext = rollInterval();
+        if(--untilNext > 0) return;
+        for(int attempt = 0; attempt < SPAWN_ATTEMPTS && ghost == null; attempt++) spawn(mc.player);
+        //The next one counts from now; no room for this one: soon again
+        untilNext = ghost == null ? RETRY_TICKS : rollInterval();
+    }
+
+    /** Ticks until the next apparition, between Apparition Min and Max Minutes */
+    private static int rollInterval() {
+        double min = ForgeConfigHandler.client.apparitionMinMinutes;
+        double max = Math.max(min, ForgeConfigHandler.client.apparitionMaxMinutes);
+        return (int) ((min + RAND.nextDouble() * (max - min)) * 1200.0D);
     }
 
     private static void tickGhost(EntityPlayerSP player) {
@@ -290,9 +301,5 @@ public class Apparitions {
     private static int getLevel(EntityPlayerSP player) {
         PotionEffect effect = player.getActivePotionEffect(PotionWakingNight.INSTANCE);
         return effect == null ? 0 : effect.getAmplifier() + 1;
-    }
-
-    private static boolean isNight(World world) {
-        return world.provider.getDimension() == 0 && NightTracker.isNight(world.getWorldTime());
     }
 }

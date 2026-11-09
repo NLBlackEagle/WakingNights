@@ -8,72 +8,79 @@ Items marked *(suggested)* are proposals that haven't been confirmed yet.
 
 ## 1. Waking Night level (buildup)
 
-Every player has their own Waking Night counter.
+Every player has their own Waking Night level: none, I, II or III. There is no hidden night count.
+It only rises from **Restless**: sleeping in certain biomes, or with certain items equipped.
 Players can't stay awake while others sleep: a night is either skipped for everyone or not at all.
 When a night is skipped, every online player is checked:
-- No Comfort IV and no Liquid Dreams effect: counter +1.
-- Comfort IV or higher: drop one whole level (see below).
+- Comfort IV or higher: drop one level.
 - Liquid Dreams active (without Comfort IV): no change.
+- Otherwise, a player who slept while Restless gets that many levels added (see Restless). Anyone else: no change.
+
+### Restless
+- Whitelisted biomes (`<biome>,<level 1-3>,<trigger>`) and items (`<item>,<level 1-3>,<armor|hand|bauble>`, Baubles
+  optional) make a player Restless. The biome's level and every equipped item's level add up, at most III
+  (Restless II biome + Restless I amulet = Restless III).
+- Shown as the Restless effect (`wakingnights:restless`, Restless I–III) while it applies; it does nothing by itself,
+  it's the warning of what sleeping will do.
+- Sleeping while Restless adds its level to the Waking Night: Waking Night I + a night in Restless II = Waking Night III.
+  Trigger 1: sleeping. Trigger 2: also right-clicking any bed in that biome (raised right away, so Waking Night III
+  keeps them out of that bed). Items count for sleeping, and for bed clicks in a trigger 2 biome.
+- At most once per night (a bed click, then sleeping, adds it once).
+- Liquid Dreams cancels all of it. Comfort (Minimum Comfort Tier) only cancels the biome's: items always count, and
+  sleeping comfortably with one on adds its level instead of dropping one. Cancelled = no Restless shown, nothing added.
+- The first time each play session a biome or item makes a player Restless, a message shows above the hotbar
+  (one for biomes, one for items). After that only the icon, until they log in again.
 
 ### Staying awake
 A normal night, not an event and not named: the mod just tracks each player through it.
 If the night is **not** skipped, every player who stayed awake through it drops one whole level at dawn.
-- **After a Waking Night event:** surviving it takes the Waking Night away completely (counter 0). Liquid Nightmares
+- **After a Waking Night event:** surviving it takes the Waking Night away completely (level none). Liquid Nightmares
   is there to force it back to III fast.
 - "Stayed awake" on a normal night = online, awake and active (not AFK) for at least 0% of the night (configurable):
   by default anyone online at dawn stays awake, AFK or not, and logging out costs nothing (it just doesn't drop).
   With a higher percentage, a player who logged in late and stays awake can fall short and keep their level.
-  A player who logged in late and the night gets skipped still gets the normal skip check (+1 without comfort).
+  A player who logged in late and the night gets skipped still gets the normal skip check.
 - AFK = nothing done for 5 minutes (configurable): no looking around, walking, clicking, chatting.
 - Optional config (off by default): the awake time only counts outside a comfort zone.
 - Waking Night III never drops this way, see the event below.
 
 The current level is shown to the player as a status icon.
 
-| Level            | Grace period (first time) | After that | Effect                         |
-|------------------|---------------------------|------------|--------------------------------|
-| Waking Night I   | 5 nights                  | 3 nights   | Spot sounds somewhere near the player at night, a configurable list per level that gets worse: I household sounds (doors, chests, footsteps), II mobs plus `wakingnights:insomnia`, III a door being bashed, enderman stare, elder guardian curse plus `wakingnights:insomnia` |
-| Waking Night II  | 9 nights                  | 5 nights   | Random insomnia potion effect; very rarely an apparition at night: a see-through mob at the edge of the player's sight, facing them, gone when looked at directly (only that player sees it, no AI) |
-| Waking Night III | 14 nights                 | 8 nights   | Can't sleep (insomnia with Lycanites); background ambience (`wakingnights:background`) at night, which everyone hears during a Waking Night; the status icon is the warning that the event is coming |
-
-All thresholds are configurable.
-
-### Grace period
-- Each player starts in the grace period, using the longer thresholds.
-- It gives a new player enough time to build a comfortable house (Comfort IV, roughly 5–8 in-game days),
-  so they can easily keep the first Waking Night from happening.
-- It ends once the player has been through their first Waking Night event.
+| Level            | Effect                         |
+|------------------|--------------------------------|
+| Waking Night I   | Spot sounds somewhere near the player, day and night, a configurable list per level that gets worse: I household sounds (doors, chests, footsteps), II mobs plus `wakingnights:insomnia`, III a door being bashed, enderman stare, elder guardian curse plus `wakingnights:insomnia` |
+| Waking Night II  | Random insomnia potion effect; an apparition every 2-5 minutes, day or night (configurable): a see-through mob at the edge of the player's sight, facing them, gone when looked at directly (only that player sees it, no AI) |
+| Waking Night III | Can't sleep (insomnia with Lycanites); background ambience (`wakingnights:background`) at night, which everyone hears during a Waking Night; the status icon is the warning that the event is coming |
 
 ### Comfort check
 When the night is skipped, check the player's ChunkComfort effect (`chunkcomfort:comfort`; the amplifier is the comfort tier).
-- No comfort effect, or tier below the minimum: counter +1.
-- Tier at or above the minimum: drop one whole level. The counter snaps to the start of the level below
-  (normal: III -> 5, II -> 3, I -> 0; grace: III -> 9, II -> 5, I -> 0).
+- Tier at or above the minimum: drop one level (not from III), and no Restless.
 - Default minimum: Comfort IV (150 comfort), configurable. The config uses the tier number shown in game
   (Comfort IV = potion amplifier 3).
-- ChunkComfort is looked up at runtime, not a build dependency. Without it, every sleep counts as uncomfortable.
+- ChunkComfort is looked up at runtime, not a build dependency.
 
 ### Other ways the level changes
-- Potion of Liquid Dreams: clears Waking Night I and II completely (not III), and the level can't rise while it lasts.
+- Potion of Liquid Dreams: clears Waking Night I and II completely (not III), and no Restless while it lasts.
 - Potion of Liquid Nightmares (instant): takes Liquid Dreams away; without it, one Waking Night level up (none → I → II → III).
+- The Waking Night effect applied again (/effect, another mod): without a Waking Night, the level of the applied
+  effect; with one, one level up (at most III).
 
 ## 2. Waking potions
 
 | | Potion of Liquid Dreams | Potion of Liquid Nightmares |
 |---|---|---|
 | Tagline | "Makes sure you have a good night!" | "Makes sure you have a terrible night!" |
-| Effect | Clears Waking Night I and II (not III); level can't rise when you wake up, for 5 seconds. | Instant: removes Liquid Dreams, otherwise one Waking Night level up. |
+| Effect | Clears Waking Night I and II (not III); no Restless for 5 seconds. | Instant: removes Liquid Dreams, otherwise one Waking Night level up. |
 | Herbalists | Sold for herbs | Sold for herbs |
 | Brewing | Awkward Potion + a configurable ingredient (none by default: herbalists only) | Awkward Potion + `biomesoplenty:flower_0:2` (configurable) |
 | Tooltip (configurable, & colour codes) | Gold: "Can be obtained through any Herbalist in the Herbalist Hut" | Gold: "An evil concoction brewed from the worst of flora found in biomes such as the Corrupted Scarlet Grove" |
 | Splash / lingering / tipped arrows | Yes (vanilla gives these for free) | Yes, so friends can troll each other right as they go to sleep |
 | Built | Effect + potion type `wakingnights:liquid_dreams`, white, own icon, 5 seconds, no particles | Instant effect + potion type `wakingnights:liquid_nightmares`, black, no icon (tipped arrows do nothing: instant effects get no arrow duration) |
 
-- When a night is skipped: comfort first (drop a level), then Liquid Dreams (no change), otherwise +1 night.
+- When a night is skipped: comfort first (drop a level), then Liquid Dreams (no change), otherwise Restless (if slept while Restless).
 
 - **Draught of Dawn:** the expensive way out of Waking Night III (e.g. when another player never reaches III, so no
-  event happens). Removes Waking Night completely: counter 0, grace period marked as passed, so 8 nights (normal
-  thresholds) until III again. Expensive brew and/or a steep herbalist trade; no ingredients that only drop during events.
+  event happens). Removes Waking Night completely. Expensive brew and/or a steep herbalist trade; no ingredients that only drop during events.
 - Herb idea *(suggested)*: Rustic chamomile (a real-life sleep aid) for Liquid Dreams.
 - Brewing ingredients are configurable.
 - Trades are set up in the pack (herbalist structures), not in this mod.
@@ -92,7 +99,7 @@ When the night is skipped, check the player's ChunkComfort effect (`chunkcomfort
   (configurable, separate from normal nights).
   Comfort sleep and staying awake on a normal night don't lower it.
   - Not active enough (AFK) or logged out: the player keeps III and faces the next one.
-  - Surviving takes the Waking Night away completely (counter 0) and ends the grace period.
+  - Surviving takes the Waking Night away completely (level none).
 - Known consequence: as long as one online player isn't at III, there's no event, so a player at III stays at III.
 - Picks one night type (see below).
   - Each night type has a weight. The night picked last time has its weight divided by 3, so the same night rarely
@@ -215,7 +222,7 @@ Night types are config entries (subtitle, lightning colour, optional mod hook, s
 - Wardlights (essence items)
 
 ## Build order
-1. Core: per-player counter, comfort check on wake-up, levels I–III and their effects, grace period, status icon, debug command.
+1. Core: per-player level, comfort check on wake-up, levels I–III and their effects, Restless, status icon, debug command.
 2. Waking potions: Liquid Dreams, Liquid Nightmares, splash variants, brewing recipes.
 3. Waking Night event: all-players check, unskippable night, Bloodmoon / Lycanites hooks, coloured lightning, additional spawns.
 4. Special entities: blighted/blooded chance, stats, essence drops, client sync.

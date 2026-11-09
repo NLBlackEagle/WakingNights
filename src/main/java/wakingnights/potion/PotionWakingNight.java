@@ -22,12 +22,17 @@ public class PotionWakingNight extends Potion {
 
     public static final PotionWakingNight INSTANCE = new PotionWakingNight();
 
-    private static final ResourceLocation ICON = new ResourceLocation(WakingNights.MODID, "textures/effects/waking_night.png");
+    private final ResourceLocation icon;
 
     public PotionWakingNight() {
-        super(true, 0x3B1F5C);
-        this.setRegistryName(WakingNights.MODID, "waking_night");
-        this.setPotionName("effect." + WakingNights.MODID + ".waking_night");
+        this("waking_night", 0x3B1F5C);
+    }
+
+    protected PotionWakingNight(String name, int color) {
+        super(true, color);
+        this.setRegistryName(WakingNights.MODID, name);
+        this.setPotionName("effect." + WakingNights.MODID + "." + name);
+        this.icon = new ResourceLocation(WakingNights.MODID, "textures/effects/" + name + ".png");
     }
 
     @Override
@@ -73,7 +78,7 @@ public class PotionWakingNight extends Potion {
     }
 
     @SideOnly(Side.CLIENT)
-    private static void drawMoon(int x, int y, float alpha) {
-        PotionLiquid.drawIcon(ICON, x, y, alpha);
+    private void drawMoon(int x, int y, float alpha) {
+        PotionLiquid.drawIcon(icon, x, y, alpha);
     }
 }
