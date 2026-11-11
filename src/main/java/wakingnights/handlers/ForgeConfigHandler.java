@@ -433,6 +433,14 @@ public class ForgeConfigHandler {
 		@Config.Name("Liquid Nightmares Tooltip")
 		public String liquidNightmaresTooltip = "&6An evil concoction brewed from the worst of flora found in biomes such as the Corrupted Scarlet Grove";
 
+		@Config.Comment("If true, Waking Night messages (Restless warnings, levels, can't sleep, ...) show above the hotbar")
+		@Config.Name("Action Bar Messages")
+		public boolean actionBarMessages = false;
+
+		@Config.Comment("If true, Waking Night messages (Restless warnings, levels, can't sleep, ...) are written in chat")
+		@Config.Name("Chat Messages")
+		public boolean chatMessages = true;
+
 		@Config.Comment({
 				"If true, players at Waking Night III always have the insomnia effect (if it exists, e.g. with Lycanites),",
 				"so they can see why they can't sleep. Sleeping is blocked at Waking Night III either way."

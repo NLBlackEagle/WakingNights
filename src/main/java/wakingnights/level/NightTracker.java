@@ -183,10 +183,9 @@ public class NightTracker {
         tell(player, new TextComponentTranslation("wakingnights.message.reached_" + level), TextFormatting.DARK_PURPLE);
     }
 
-    /** Too long for the action bar: these go to chat */
     private static void tell(EntityPlayerMP player, TextComponentTranslation message, TextFormatting color) {
         message.setStyle(new Style().setColor(color).setItalic(true));
-        player.sendMessage(message);
+        Messages.send(player, message);
     }
 
     public static void onNightPassed(List<EntityPlayerMP> players, long night) {
@@ -196,10 +195,7 @@ public class NightTracker {
             if(level <= 0 || level >= WakingLevel.MAX_LEVEL || !stayedAwake(player, night, false)) continue;
             WakingLevel.dropLevel(player);
             //The message is about what's leaving them, so it goes by the level they had through the night
-            //Above the hotbar, and in chat so it can be read again
-            TextComponentTranslation message = new TextComponentTranslation("wakingnights.message.stayed_awake_" + level);
-            player.sendStatusMessage(message, true);
-            player.sendMessage(message);
+            Messages.send(player, new TextComponentTranslation("wakingnights.message.stayed_awake_" + level));
         }
     }
 
@@ -336,9 +332,9 @@ public class NightTracker {
             event.setResult(EntityPlayer.SleepResult.OTHER_PROBLEM);
             //Vanilla only sets the spawn point when sleeping works, it shouldn't cost players their bed
             player.setSpawnChunk(event.getPos(), false, player.dimension);
-            player.sendStatusMessage(new TextComponentTranslation(eventActive
+            Messages.send((EntityPlayerMP) player, new TextComponentTranslation(eventActive
                     ? "wakingnights.message.cant_sleep_event"
-                    : "wakingnights.message.cant_sleep"), true);
+                    : "wakingnights.message.cant_sleep"));
         }
     }
 }

@@ -145,10 +145,9 @@ public final class Restless {
     private static void sendWarning(EntityPlayerMP player, String key) {
         TextComponentTranslation message = new TextComponentTranslation(key);
         message.setStyle(new Style().setColor(TextFormatting.DARK_PURPLE).setItalic(true));
-        player.sendStatusMessage(message, true);
-        //Once in chat as well, so it can be read again (the resends only go above the hotbar)
-        player.sendMessage(message);
-        SHOWING.put(player.getUniqueID(), new Showing(message));
+        //Once in chat (if enabled), so it can be read again; the resends only go above the hotbar
+        Messages.send(player, message);
+        if(Messages.actionBar()) SHOWING.put(player.getUniqueID(), new Showing(message));
     }
 
     /**
