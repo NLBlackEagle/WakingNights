@@ -196,7 +196,10 @@ public class NightTracker {
             if(level <= 0 || level >= WakingLevel.MAX_LEVEL || !stayedAwake(player, night, false)) continue;
             WakingLevel.dropLevel(player);
             //The message is about what's leaving them, so it goes by the level they had through the night
-            player.sendStatusMessage(new TextComponentTranslation("wakingnights.message.stayed_awake_" + level), true);
+            //Above the hotbar, and in chat so it can be read again
+            TextComponentTranslation message = new TextComponentTranslation("wakingnights.message.stayed_awake_" + level);
+            player.sendStatusMessage(message, true);
+            player.sendMessage(message);
         }
     }
 

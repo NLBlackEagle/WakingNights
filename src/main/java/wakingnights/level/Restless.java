@@ -53,6 +53,10 @@ public final class Restless {
 
     //The biomes and items each player got the Restless message for this play session (cleared on logout)
     private static final Map<UUID, Set<String>> WARNED = new HashMap<>();
+    //The Restless message each player is being shown right now, sent again until it has been up long enough
+    private static final Map<UUID, Showing> SHOWING = new HashMap<>();
+    //Last resend at 8 seconds, shown 3 more: about 11 seconds in all (vanilla's 3, times 3 and a bit)
+    private static final int WARNING_SECONDS = 9;
 
     private static String[] parsedBiomes;
     private static Map<ResourceLocation, BiomeEntry> biomes = new HashMap<>();
@@ -120,7 +124,7 @@ public final class Restless {
      * One message per update, so a new biome and a new item a second apart each get theirs.
      */
     private static void warn(EntityPlayerMP player, State state) {
-        if(state.level <= 0) return;
+        if(keepShowing(player) || state.level <= 0) return;
         Set<String> warned = WARNED.computeIfAbsent(player.getUniqueID(), id -> new HashSet<>());
         if(state.biomeLevel > 0) {
             ResourceLocation biome = player.world.getBiome(new BlockPos(player)).getRegistryName();
@@ -142,11 +146,40 @@ public final class Restless {
         TextComponentTranslation message = new TextComponentTranslation(key);
         message.setStyle(new Style().setColor(TextFormatting.DARK_PURPLE).setItalic(true));
         player.sendStatusMessage(message, true);
+        //Once in chat as well, so it can be read again (the resends only go above the hotbar)
+        player.sendMessage(message);
+        SHOWING.put(player.getUniqueID(), new Showing(message));
+    }
+
+    /**
+     * The action bar only shows a message for 3 seconds, so a warning is sent again every 2 seconds until it has been
+     * up for about 10. Returns whether one is still showing, so the next warning waits its turn instead of cutting it off.
+     */
+    private static boolean keepShowing(EntityPlayerMP player) {
+        Showing showing = SHOWING.get(player.getUniqueID());
+        if(showing == null) return false;
+        showing.seconds++;
+        if(showing.seconds >= WARNING_SECONDS) {
+            SHOWING.remove(player.getUniqueID());
+            return false;
+        }
+        if(showing.seconds % 2 == 0) player.sendStatusMessage(showing.message, true);
+        return true;
+    }
+
+    private static final class Showing {
+        final TextComponentTranslation message;
+        int seconds;
+
+        Showing(TextComponentTranslation message) {
+            this.message = message;
+        }
     }
 
     @SubscribeEvent
     public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         WARNED.remove(event.player.getUniqueID());
+        SHOWING.remove(event.player.getUniqueID());
     }
 
     /** Waking up from a skipped night: having slept while Restless adds its levels */
