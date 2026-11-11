@@ -11,7 +11,6 @@ import net.minecraft.util.text.Style;
 import net.minecraft.util.text.TextComponentTranslation;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
-import net.minecraft.world.biome.Biome;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.fml.common.Loader;
 import net.minecraftforge.fml.common.Mod;
@@ -59,7 +58,8 @@ public final class Restless {
     private static final int WARNING_SECONDS = 9;
 
     private static String[] parsedBiomes;
-    private static Map<ResourceLocation, BiomeEntry> biomes = new HashMap<>();
+    //By <dimension>|<biome>, either one possibly a wildcard
+    private static Map<String, BiomeEntry> biomes = new HashMap<>();
     private static String[] parsedItems;
     private static List<ItemEntry> items = new ArrayList<>();
 
@@ -90,8 +90,7 @@ public final class Restless {
         int biomeLevel = 0;
         boolean bedTrigger = false;
         if(!WakingLevel.isComfortable(player)) {
-            Biome biome = player.world.getBiome(new BlockPos(player));
-            BiomeEntry biomeEntry = getBiomes().get(biome.getRegistryName());
+            BiomeEntry biomeEntry = getBiomeEntry(player);
             if(biomeEntry != null) {
                 biomeLevel = biomeEntry.level;
                 bedTrigger = biomeEntry.trigger == TRIGGER_BED;
@@ -127,8 +126,9 @@ public final class Restless {
         if(keepShowing(player) || state.level <= 0) return;
         Set<String> warned = WARNED.computeIfAbsent(player.getUniqueID(), id -> new HashSet<>());
         if(state.biomeLevel > 0) {
-            ResourceLocation biome = player.world.getBiome(new BlockPos(player)).getRegistryName();
-            if(biome != null && warned.add("biome:" + biome)) {
+            //Once per config entry, so a whole dimension (0,*) warns once rather than for every biome in it
+            BiomeEntry biomeEntry = getBiomeEntry(player);
+            if(biomeEntry != null && warned.add("biome:" + biomeEntry.key)) {
                 sendWarning(player, "wakingnights.message.restless_biome");
                 return;
             }
@@ -213,13 +213,39 @@ public final class Restless {
     // ------ Config ------
 
     private static final class BiomeEntry {
+        //<dimension>|<biome> as configured, wildcards included
+        final String key;
         final int level;
         final int trigger;
 
-        BiomeEntry(int level, int trigger) {
+        BiomeEntry(String key, int level, int trigger) {
+            this.key = key;
             this.level = level;
             this.trigger = trigger;
         }
+    }
+
+    private static final String ANY = "*";
+
+    /**
+     * The entry for the player's dimension and biome, the most specific one first: exact dimension before *, and
+     * within that the exact biome, then <mod>:*, then *.
+     */
+    @Nullable
+    private static BiomeEntry getBiomeEntry(EntityPlayer player) {
+        ResourceLocation biome = player.world.getBiome(new BlockPos(player)).getRegistryName();
+        if(biome == null) return null;
+        Map<String, BiomeEntry> entries = getBiomes();
+        if(entries.isEmpty()) return null;
+        String[] dimensions = {String.valueOf(player.dimension), ANY};
+        String[] biomeKeys = {biome.toString(), biome.getNamespace() + ":" + ANY, ANY};
+        for(String dimension : dimensions) {
+            for(String biomeKey : biomeKeys) {
+                BiomeEntry entry = entries.get(dimension + "|" + biomeKey);
+                if(entry != null) return entry;
+            }
+        }
+        return null;
     }
 
     private enum Slot { ARMOR, HAND, BAUBLE }
@@ -264,7 +290,7 @@ public final class Restless {
     }
 
     /** Parsed again whenever the config changed (syncing it sets new arrays) */
-    private static Map<ResourceLocation, BiomeEntry> getBiomes() {
+    private static Map<String, BiomeEntry> getBiomes() {
         String[] config = ForgeConfigHandler.server.restlessBiomes;
         if(config == parsedBiomes) return biomes;
         parsedBiomes = config;
@@ -273,14 +299,22 @@ public final class Restless {
         for(String line : config) {
             String[] parts = line.split(",");
             try {
-                if(parts.length != 3) throw new IllegalArgumentException("expected <biome>,<level>,<trigger>");
-                ResourceLocation id = new ResourceLocation(parts[0].trim());
-                int level = Integer.parseInt(parts[1].trim());
-                int trigger = Integer.parseInt(parts[2].trim());
+                if(parts.length != 4) throw new IllegalArgumentException("expected <dimension id>,<biome>,<level>,<trigger>");
+                String dimension = parts[0].trim();
+                if(!dimension.equals(ANY)) dimension = String.valueOf(Integer.parseInt(dimension));
+                String biome = parts[1].trim();
+                if(!biome.equals(ANY)) {
+                    //<mod>:<biome> or <mod>:*
+                    ResourceLocation id = new ResourceLocation(biome);
+                    biome = id.toString();
+                    if(!id.getPath().equals(ANY) && !ForgeRegistries.BIOMES.containsKey(id)) WakingNights.LOGGER.warn("Restless biome {} doesn't exist (yet), it's kept in case it's added later", id);
+                }
+                int level = Integer.parseInt(parts[2].trim());
+                int trigger = Integer.parseInt(parts[3].trim());
                 if(level < 1 || level > WakingLevel.MAX_LEVEL) throw new IllegalArgumentException("level must be 1 to 3");
                 if(trigger != TRIGGER_SLEEP && trigger != TRIGGER_BED) throw new IllegalArgumentException("trigger must be 1 or 2");
-                if(!ForgeRegistries.BIOMES.containsKey(id)) WakingNights.LOGGER.warn("Restless biome {} doesn't exist (yet), it's kept in case it's added later", id);
-                biomes.put(id, new BiomeEntry(level, trigger));
+                String key = dimension + "|" + biome;
+                biomes.put(key, new BiomeEntry(key, level, trigger));
             }
             catch(IllegalArgumentException e) {
                 WakingNights.LOGGER.warn("Invalid Restless Biomes entry '{}': {}", line, e.getMessage());

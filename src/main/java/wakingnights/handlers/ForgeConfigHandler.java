@@ -40,13 +40,16 @@ public class ForgeConfigHandler {
 		public boolean enableSRParasitesMixin = true;
 
 		@Config.Comment({
-				"Biomes that make players Restless, as <biome id>,<restless level 1-3>,<trigger>.",
+				"Biomes that make players Restless, as <dimension id>,<biome id>,<restless level 1-3>,<trigger>.",
+				"Both can be *: *,<biome> is that biome in every dimension, 0,* every biome in dimension 0. The biome can also",
+				"be <mod>:* for all of a mod's biomes. The most specific entry wins (exact dimension before *, then exact biome,",
+				"<mod>:*, *). A whole dimension or mod only warns the player once, not per biome.",
 				"Restless is shown as an effect while in the biome, a warning: sleeping there adds its level to the player's",
 				"Waking Night (Restless II at Waking Night I: Waking Night III). Trigger 1: sleeping. Trigger 2: also",
 				"right-clicking any bed there (raised right away). At most once per night.",
 				"Restless from the biome and Restless Items add up, at most III. Liquid Dreams and comfort (Minimum Comfort",
 				"Tier) cancel the biome's. Nothing else raises the Waking Night but Liquid Nightmares and the effect applied again.",
-				"Example: biomesoplenty:wasteland,2,1"
+				"Examples: 0,biomesoplenty:wasteland,2,1  *,srparasites:biome_parasite,3,1  -1,*,1,1"
 		})
 		@Config.Name("Restless Biomes")
 		public String[] restlessBiomes = {};
