@@ -1,6 +1,10 @@
 package wakingnights.level;
 
+import net.minecraft.command.CommandBase;
+import net.minecraft.command.CommandException;
 import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.server.MinecraftServer;
+import net.minecraftforge.event.CommandEvent;
 import net.minecraft.network.play.server.SPacketCustomSound;
 import net.minecraft.potion.Potion;
 import net.minecraft.potion.PotionEffect;
@@ -98,6 +102,39 @@ public class WakingEffects {
         else WakingLevel.raiseLevel(player);
         int reached = WakingLevel.getLevel(player);
         if(reached > level) NightTracker.tellReached(player, reached);
+    }
+
+    /**
+     * The icon comes back from the level every second, so /effect taking it away (clear, or Waking Night with 0 seconds)
+     * clears the level. Only the command: other things clearing every effect (a totem, another mod) leave the level alone.
+     */
+    @SubscribeEvent
+    public static void onCommand(CommandEvent event) {
+        if(!"effect".equals(event.getCommand().getName())) return;
+        String[] args = event.getParameters();
+        if(args.length < 2) return;
+        boolean clear = "clear".equalsIgnoreCase(args[1]);
+        if(!clear) {
+            Potion potion = Potion.getPotionFromResourceLocation(args[1]);
+            if(potion == null) {
+                try {
+                    potion = Potion.getPotionById(Integer.parseInt(args[1]));
+                }
+                catch(NumberFormatException ignored) {}
+            }
+            //Seconds 0 removes the effect
+            if(potion != PotionWakingNight.INSTANCE || args.length < 3 || !"0".equals(args[2].trim())) return;
+        }
+        MinecraftServer server = event.getSender().getServer();
+        if(server == null || !event.getCommand().checkPermission(server, event.getSender())) return;
+        try {
+            for(EntityPlayerMP player : CommandBase.getPlayers(server, event.getSender(), args[0])) {
+                if(WakingLevel.getLevel(player) > 0) WakingLevel.setLevel(player, 0);
+            }
+        }
+        catch(CommandException ignored) {
+            //Not players: nothing of ours to clear, the command reports it itself
+        }
     }
 
     /** A spot sound from the player's level's list, so they get worse as the level rises */
