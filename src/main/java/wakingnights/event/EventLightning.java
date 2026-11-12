@@ -44,7 +44,7 @@ public final class EventLightning {
 
     /** Without a sky: the floor of the cave or island this column has around the player's height, null if there's none */
     @Nullable
-    private static BlockPos findGround(World world, BlockPos column, double y) {
+    static BlockPos findGround(World world, BlockPos column, double y) {
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos(column.getX(), (int) y + 8, column.getZ());
         for(int i = 0; i < 24; i++, pos.move(EnumFacing.DOWN)) {
             if(world.isAirBlock(pos) && !world.isAirBlock(pos.down())) return pos.toImmutable();

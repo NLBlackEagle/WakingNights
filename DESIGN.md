@@ -132,6 +132,12 @@ When the night is skipped, check the player's ChunkComfort effect (`chunkcomfort
     exactly time 12000 and could miss by a night). No "a blood moon is rising" message. Looked up at runtime.
 - Lightning is visual only (no fire or damage), 16 to 80 blocks from each player. Dark colours are drawn with normal
   blending, since vanilla's additive lightning can't be darker than the sky behind it.
+- Flight strikes: after nightfall, players off the ground (more than 5 blocks above the highest block of their column,
+  water counts, measured from their mount's feet: flying mounts, elytra, grapples) draw the lightning in. Under a roof
+  is ground. In cave dimensions (config, default nether and dimension 3) it's more than 5 blocks of air below them. Every 3 seconds in the air
+  (config) it gets more frequent and closer (3s: 10-24 blocks, 6s: 6-14, 9s: 3-8), and from 12 seconds on each strike
+  (about one a second) has a 20% chance to hit: dismounts them like EagleMixins, 5 damage, 8 seconds of fire, then
+  3 seconds before the next hit can come. Getting back near the ground resets the time.
 - Additional spawns: each night type can have a weighted list of entities (`spawns=`, `spawnInterval=`, `spawnGroup=`,
   `spawnCap=`, `spawnInSightAfter=`, `spawnCloseAtHalf=`): groups every few seconds; each spawn can be held back until
   the night has happened a few times (`<id> <weight> 3`: from the 3rd time on, counted per world), so the harder ones

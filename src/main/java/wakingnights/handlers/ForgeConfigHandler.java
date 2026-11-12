@@ -233,6 +233,52 @@ public class ForgeConfigHandler {
 		};
 
 		@Config.Comment({
+				"If true, during a Waking Night (once the sun is gone) the lightning goes after players who stay off the ground:",
+				"more than Flight Strike Ground Range blocks above the highest block (water counts) below them, or below the",
+				"mount they ride (flying mounts, elytra, ...). Under a roof counts as ground.",
+				"Every Flight Strike Stage Seconds in the air it strikes more often and closer, and from the 4th stage on",
+				"every strike can hit them, dismounting them. Getting back near the ground resets it."
+		})
+		@Config.Name("Flight Strikes Enabled")
+		public boolean flightStrikesEnabled = true;
+
+		@Config.Comment({
+				"How high above the highest block below them players (or their mount) can be before they count as flying.",
+				"In the Flight Strike Cave Dimensions it's more than this many blocks of air below them instead."
+		})
+		@Config.Name("Flight Strike Ground Range")
+		@Config.RangeDouble(min = 0.0)
+		public double flightStrikeGroundRange = 5.0;
+
+		@Config.Comment({
+				"Dimensions with a roof over everything (like the nether's bedrock), where the highest block is the roof:",
+				"there players count as flying with more than Flight Strike Ground Range blocks of air (no solid block or",
+				"liquid) below them, and the strikes land on the floor around them instead of on top of the roof."
+		})
+		@Config.Name("Flight Strike Cave Dimensions")
+		public int[] flightStrikeCaveDimensions = {-1, 3};
+
+		@Config.Comment("Seconds in the air per stage of Flight Strikes. Strikes can hit from 4 times this on.")
+		@Config.Name("Flight Strike Stage Seconds")
+		@Config.RangeInt(min = 1)
+		public int flightStrikeStageSeconds = 3;
+
+		@Config.Comment("Chance in percent for each strike from the last Flight Strike stage on to hit the player (about one strike per second)")
+		@Config.Name("Flight Strike Hit Chance")
+		@Config.RangeDouble(min = 0.0, max = 100.0)
+		public double flightStrikeHitChance = 20.0;
+
+		@Config.Comment("Damage a Flight Strike hit deals (vanilla lightning deals 5)")
+		@Config.Name("Flight Strike Damage")
+		@Config.RangeDouble(min = 0.0)
+		public double flightStrikeDamage = 5.0;
+
+		@Config.Comment("Seconds a Flight Strike hit sets the player on fire (vanilla lightning: 8)")
+		@Config.Name("Flight Strike Fire Seconds")
+		@Config.RangeInt(min = 0, max = 60)
+		public int flightStrikeFireSeconds = 8;
+
+		@Config.Comment({
 				"Chance in percent for a hostile mob spawning near a player during a Waking Night (once the sun is gone)",
 				"to turn special (blooded or blighted, per night type). Special mobs know where the player is and hunt them."
 		})

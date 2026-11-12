@@ -18,6 +18,7 @@ import net.minecraftforge.fml.common.gameevent.TickEvent;
 import wakingnights.WakingNights;
 import wakingnights.event.EventLightning;
 import wakingnights.event.EventSpawner;
+import wakingnights.event.FlightLightning;
 import wakingnights.event.NightWeather;
 import wakingnights.event.NightHook;
 import wakingnights.event.NightHooks;
@@ -104,6 +105,7 @@ public class NightTracker {
             if(buildUp > 0.0F) EventLightning.tick(data, players, buildUp);
             if(isAfterNightfall(time)) {
                 EventSpawner.tick(world, data, players);
+                FlightLightning.tick(data, players);
                 for(NightHook hook : getHooks(data)) hook.tick(world);
             }
         }
@@ -241,6 +243,7 @@ public class NightTracker {
         for(NightHook previous : getHooks(data)) previous.end(DimensionManager.getWorld(0));
         SpecialSpawner.reset();
         EventSpawner.reset();
+        FlightLightning.reset();
         if(type == null) WakingNights.LOGGER.warn("No night types configured, the Waking Night has no night type");
         data.startEvent(type == null ? null : type.id, NightType.assignDimensions(type, RAND));
         //Started over another one (debug command): its special mobs of the wrong kind and its own spawns go
@@ -297,6 +300,7 @@ public class NightTracker {
         for(NightHook hook : getHooks(data)) hook.end(DimensionManager.getWorld(0));
         NightWeather.end(DimensionManager.getWorld(0), data);
         data.endEvent();
+        FlightLightning.reset();
         SpecialSpawner.removeStrays(data);
         //The night's own spawns (e.g. parasites in the overworld) must never outlive it
         EventSpawner.removeStrays(data);
