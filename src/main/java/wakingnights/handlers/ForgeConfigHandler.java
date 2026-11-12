@@ -65,13 +65,14 @@ public class ForgeConfigHandler {
 		public String[] restlessItems = {};
 
 		@Config.Comment({
-				"Lowest comfort tier (as shown in game, Comfort I = 1) that counts as a comfortable night.",
+				"Lowest comfort tier (as shown in game: plain Comfort = 1, Comfort II = 2) that counts as a comfortable night.",
+				"Plain Comfort is ChunkComfort's base tier: a hearth and the requirements met, but no comfort points yet.",
 				"At or above it, a skipped night lowers the Waking Night level by one (not with a Restless item on),",
 				"and biomes don't make players Restless."
 		})
 		@Config.Name("Minimum Comfort Tier")
 		@Config.RangeInt(min = 1, max = 100)
-		public int minComfortTier = 4;
+		public int minComfortTier = 5;
 
 		@Config.Comment("Effect that holds the comfort tier in its amplifier (ChunkComfort)")
 		@Config.Name("Comfort Effect")
