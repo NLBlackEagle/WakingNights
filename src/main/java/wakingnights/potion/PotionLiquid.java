@@ -28,8 +28,8 @@ public class PotionLiquid extends Potion {
     public static final PotionLiquid DREAMS = new PotionLiquid("liquid_dreams", false, 0xFFFFFF);
     public static final PotionLiquid NIGHTMARES = new PotionLiquid("liquid_nightmares", true, 0x000000);
 
-    //5 seconds. The potion has particles, or vanilla colours the bottle black; they're taken off the player (stripParticles)
-    public static final PotionType DREAMS_TYPE = new PotionType("liquid_dreams", new PotionEffect(DREAMS, 100)).setRegistryName(WakingNights.MODID, "liquid_dreams");
+    //5 minutes. The potion has particles, or vanilla colours the bottle black; they're taken off the player (stripParticles)
+    public static final PotionType DREAMS_TYPE = new PotionType("liquid_dreams", new PotionEffect(DREAMS, 6000)).setRegistryName(WakingNights.MODID, "liquid_dreams");
     public static final PotionType NIGHTMARES_TYPE = new PotionType("liquid_nightmares", new PotionEffect(NIGHTMARES)).setRegistryName(WakingNights.MODID, "liquid_nightmares");
 
     private static final ResourceLocation DREAMS_ICON = new ResourceLocation(WakingNights.MODID, "textures/effects/liquid_dreams.png");
