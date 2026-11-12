@@ -20,6 +20,7 @@ import net.minecraftforge.fml.common.gameevent.TickEvent;
 import wakingnights.WakingNights;
 import wakingnights.handlers.ForgeConfigHandler;
 import wakingnights.potion.PotionLiquid;
+import wakingnights.potion.PotionRestless;
 import wakingnights.potion.PotionWakingNight;
 
 import java.util.HashMap;
@@ -84,6 +85,42 @@ public class WakingEffects {
         }
         finally {
             settingIcon = false;
+        }
+    }
+
+    /**
+     * The client only shows **:** when an effect packet carries exactly ICON_DURATION. Logging in, changing dimension
+     * and respawning resend every effect with the time it has left, which then counts down until the next refresh (up
+     * to a minute), so the icons go back to the full duration right away.
+     */
+    @SubscribeEvent
+    public static void onLogin(PlayerEvent.PlayerLoggedInEvent event) {
+        refreshIcons(event.player);
+    }
+
+    @SubscribeEvent
+    public static void onChangedDimension(PlayerEvent.PlayerChangedDimensionEvent event) {
+        refreshIcons(event.player);
+    }
+
+    @SubscribeEvent
+    public static void onRespawn(PlayerEvent.PlayerRespawnEvent event) {
+        refreshIcons(event.player);
+    }
+
+    private static void refreshIcons(net.minecraft.entity.player.EntityPlayer player) {
+        if(!(player instanceof EntityPlayerMP)) return;
+        for(Potion potion : new Potion[] {PotionWakingNight.INSTANCE, PotionRestless.INSTANCE}) {
+            PotionEffect current = player.getActivePotionEffect(potion);
+            if(current == null) continue;
+            player.removePotionEffect(potion);
+            settingIcon = true;
+            try {
+                player.addPotionEffect(new PotionEffect(potion, ICON_DURATION, current.getAmplifier(), true, false));
+            }
+            finally {
+                settingIcon = false;
+            }
         }
     }
 
