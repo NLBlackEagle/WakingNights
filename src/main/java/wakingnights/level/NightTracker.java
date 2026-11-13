@@ -17,6 +17,7 @@ import net.minecraftforge.fml.common.gameevent.PlayerEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 import wakingnights.WakingNights;
 import wakingnights.event.EventLightning;
+import wakingnights.event.EventScent;
 import wakingnights.event.EventSpawner;
 import wakingnights.event.FlightLightning;
 import wakingnights.event.NightWeather;
@@ -105,6 +106,7 @@ public class NightTracker {
             if(buildUp > 0.0F) EventLightning.tick(data, players, buildUp);
             if(isAfterNightfall(time)) {
                 EventSpawner.tick(world, data, players);
+                EventScent.tick(time, data, players);
                 FlightLightning.tick(data, players);
                 for(NightHook hook : getHooks(data)) hook.tick(world);
             }

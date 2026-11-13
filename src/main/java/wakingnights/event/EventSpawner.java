@@ -29,10 +29,8 @@ import wakingnights.capability.SpecialType;
 import wakingnights.level.NightTracker;
 import wakingnights.level.WakingNightsWorldData;
 
-import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -72,7 +70,8 @@ public final class EventSpawner {
 
     private static final UUID RAMP_ID = UUID.fromString("6b1f1d52-3c2a-4f0e-9a7e-1b4c2e5d8f06");
     private static final Random RAND = new Random();
-    private static final Map<UUID, List<WeakReference<Entity>>> SPAWNED = new HashMap<>();
+    //Event spawns within this many blocks of a player count toward their spawnCap (a bit past where they spawn, they wander)
+    private static final double COUNT_RADIUS = 64.0D;
     //World time each player's next group may spawn, and how many may be around them this night
     private static final Map<UUID, Long> NEXT_GROUP = new HashMap<>();
     private static final Map<UUID, Integer> CAPS = new HashMap<>();
@@ -81,7 +80,6 @@ public final class EventSpawner {
 
     /** A new Waking Night starts with none */
     public static void reset() {
-        SPAWNED.clear();
         NEXT_GROUP.clear();
         CAPS.clear();
     }
@@ -103,7 +101,7 @@ public final class EventSpawner {
             if(next != null && now < next) continue;
             NEXT_GROUP.put(id, now + (long) (randomBetween(type.spawnIntervalMin, type.spawnIntervalMax) * 20.0D));
             int cap = CAPS.computeIfAbsent(id, uuid -> scale(type.spawnCapMin + RAND.nextInt(type.spawnCapMax - type.spawnCapMin + 1), ramp));
-            int room = cap - countAlive(player);
+            int room = cap - countAlive(player, type);
             if(room <= 0) continue;
             int group = Math.min(room, scale(type.spawnGroupMin + RAND.nextInt(type.spawnGroupMax - type.spawnGroupMin + 1), ramp));
             spawnGroup(player.world, type, player, group, ramp, times);
@@ -119,14 +117,13 @@ public final class EventSpawner {
         return min + RAND.nextDouble() * (max - min);
     }
 
-    private static int countAlive(EntityPlayer player) {
-        List<WeakReference<Entity>> list = SPAWNED.get(player.getUniqueID());
-        if(list == null) return 0;
-        for(Iterator<WeakReference<Entity>> it = list.iterator(); it.hasNext(); ) {
-            Entity entity = it.next().get();
-            if(entity == null || entity.isDead) it.remove();
-        }
-        return list.size();
+    /**
+     * The night's own spawns loaded around the player right now. Counted from the world rather than remembered, so ones
+     * left behind (the player died and respawned elsewhere, flew off, their chunk unloaded) don't hold up new groups
+     */
+    private static int countAlive(EntityPlayer player, NightType type) {
+        return player.world.getEntitiesWithinAABB(EntityLiving.class, player.getEntityBoundingBox().grow(COUNT_RADIUS),
+                entity -> entity != null && !entity.isDead && type.id.equals(entity.getEntityData().getString(EVENT_TAG))).size();
     }
 
     /** One spot around the player, the whole group around that spot */
@@ -134,13 +131,11 @@ public final class EventSpawner {
         Placement placement = getPlacement(world, type);
         BlockPos center = findSpot(world, player, placement);
         if(center == null) return;
-        List<WeakReference<Entity>> spawned = SPAWNED.computeIfAbsent(player.getUniqueID(), id -> new ArrayList<>());
         for(int i = 0; i < size; i++) {
             BlockPos near = i == 0 ? center : findGround(world, center.add(RAND.nextInt(GROUP_SPREAD * 2 + 1) - GROUP_SPREAD, 0,
                     RAND.nextInt(GROUP_SPREAD * 2 + 1) - GROUP_SPREAD), 3);
             if(near == null) continue;
-            Entity mob = spawn(world, type, near, ramp, times);
-            if(mob != null) spawned.add(new WeakReference<>(mob));
+            spawn(world, type, near, ramp, times);
         }
     }
 

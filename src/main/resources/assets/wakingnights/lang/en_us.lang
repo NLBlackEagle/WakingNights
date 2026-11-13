@@ -31,3 +31,5 @@ wakingnights.message.reached_2=The Waking Night roars its head... It is not too 
 wakingnights.message.reached_3=It is too late now, you'll have to spend the night by surviving its horrors. You'd better prepare for what is to come.
 wakingnights.message.night_survived=You have survived the horrors of the Waking Night, it slips back into its slumber... For now.
 wakingnights.message.night_not_survived=You failed to conquer the Waking Night for you have chosen to ignore it for a significant amount. The Night knows and will visit you again soon.
+wakingnights.tooltip.liquid_dreams_clears=Clears Restless I, II, III and Waking Night I & II
+wakingnights.tooltip.restless_item=Gives Restless %s

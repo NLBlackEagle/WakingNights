@@ -322,6 +322,15 @@ public final class Restless {
         return biomes;
     }
 
+    /** The Restless level a configured Restless Item gives (the highest if it's listed more than once), 0 for any other item */
+    public static int getItemLevel(ItemStack stack) {
+        int level = 0;
+        for(ItemEntry entry : getItems()) {
+            if(entry.matches(stack)) level = Math.max(level, entry.level);
+        }
+        return level;
+    }
+
     private static List<ItemEntry> getItems() {
         String[] config = ForgeConfigHandler.server.restlessItems;
         if(config == parsedItems) return items;

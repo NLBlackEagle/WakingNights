@@ -233,6 +233,46 @@ public class ForgeConfigHandler {
 		};
 
 		@Config.Comment({
+				"If true, during a Waking Night (once the sun is gone) the night's mobs (its own spawns, Lycanites wave mobs,",
+				"Bloodmoon's spawns) that aren't after anyone now and then catch wind of the nearest player: they head to a spot",
+				"near them, not right at them. Each mob on its own random moment, so they trickle in instead of all coming at",
+				"once. Special mobs already always know where the player is and are left alone."
+		})
+		@Config.Name("Scent Enabled")
+		public boolean scentEnabled = true;
+
+		@Config.Comment({
+				"Chance in percent, rolled for each mob on its own every Scent Interval, that it catches wind of a player and heads",
+				"their way (20: about 2 in 10 of them set off each time)"
+		})
+		@Config.Name("Scent Chance")
+		@Config.RangeDouble(min = 0.0, max = 100.0)
+		public double scentChance = 20.0;
+
+		@Config.Comment("Least seconds between scent rolls (the time until the next roll is random between min and max)")
+		@Config.Name("Scent Interval Min")
+		@Config.RangeDouble(min = 0.05, max = 600.0)
+		public double scentIntervalMin = 1.0;
+
+		@Config.Comment("Most seconds between scent rolls (the time until the next roll is random between min and max)")
+		@Config.Name("Scent Interval Max")
+		@Config.RangeDouble(min = 0.05, max = 600.0)
+		public double scentIntervalMax = 5.0;
+
+		@Config.Comment("Mobs within this many blocks of a player can catch wind of them")
+		@Config.Name("Scent Range")
+		@Config.RangeDouble(min = 8.0, max = 128.0)
+		public double scentRange = 64.0;
+
+		@Config.Comment({
+				"How far off the spot a mob heads to can be, as a share of its distance to the player (0.25: a mob 40 blocks",
+				"away heads somewhere within 10 blocks of them). Never less than 3 blocks."
+		})
+		@Config.Name("Scent Inaccuracy")
+		@Config.RangeDouble(min = 0.0, max = 1.0)
+		public double scentInaccuracy = 0.25;
+
+		@Config.Comment({
 				"If true, during a Waking Night (once the sun is gone) the lightning goes after players who stay off the ground:",
 				"more than Flight Strike Ground Range blocks above the highest block (water counts) below them, or below the",
 				"mount they ride (flying mounts, elytra, ...). Under a roof counts as ground.",
