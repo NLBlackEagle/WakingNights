@@ -315,6 +315,7 @@ public class NightTracker {
             else if(stayedAwake(player, night, true)) {
                 WakingLevel.survivedWakingNight(player);
                 tell(player, new TextComponentTranslation("wakingnights.message.night_survived"), TextFormatting.GOLD);
+                Restless.afterWakingNight(player, night);
             }
             else {
                 tell(player, new TextComponentTranslation("wakingnights.message.night_not_survived"), TextFormatting.DARK_RED);

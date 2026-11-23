@@ -22,6 +22,7 @@ public final class WakingLevel {
     private static final String LEVEL = "level";
     //The night of the last time Restless raised the level: at most once per night
     private static final String RESTLESS_NIGHT = "restlessNight";
+    private static final String RESTLESS_LEVELS = "restlessLevels";
     //The last night the player was in bed
     private static final String SLEPT_NIGHT = "sleptNight";
     private static final String AWAKE_NIGHT = "awakeNight";
@@ -103,8 +104,16 @@ public final class WakingLevel {
         return data.hasKey(RESTLESS_NIGHT) && data.getLong(RESTLESS_NIGHT) == night;
     }
 
-    public static void setRestlessDone(EntityPlayer player, long night) {
-        getData(player).setLong(RESTLESS_NIGHT, night);
+    /** levels: how Restless the player was, kept for a Waking Night that ends this same night (see Restless.afterWakingNight) */
+    public static void setRestlessDone(EntityPlayer player, long night, int levels) {
+        NBTTagCompound data = getData(player);
+        data.setLong(RESTLESS_NIGHT, night);
+        data.setInteger(RESTLESS_LEVELS, levels);
+    }
+
+    /** How Restless the player was when Restless counted this night, 0 if it didn't */
+    public static int getRestlessLevels(EntityPlayer player, long night) {
+        return isRestlessDone(player, night) ? getData(player).getInteger(RESTLESS_LEVELS) : 0;
     }
 
     public static void setSlept(EntityPlayer player, long night) {

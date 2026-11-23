@@ -41,7 +41,8 @@ import java.util.UUID;
  * that many levels to the Waking Night (Restless II at Waking Night I: Waking Night III). A biome with trigger 2 does
  * the same when a bed is right-clicked there. At most once per night.
  * Liquid Dreams cancels all of it. Comfort (from Minimum Comfort Tier) only cancels the biome's: items always count.
- * Each biome and item tells the player once per play session, above the hotbar.
+ * Each biome and item tells the player once per play session, above the hotbar. A biome entered straight from another
+ * Restless biome doesn't: the player already knows.
  */
 @Mod.EventBusSubscriber(modid = WakingNights.MODID)
 public final class Restless {
@@ -56,6 +57,8 @@ public final class Restless {
     private static final Map<UUID, Showing> SHOWING = new HashMap<>();
     //Last resend at 8 seconds, shown 3 more: about 11 seconds in all (vanilla's 3, times 3 and a bit)
     private static final int WARNING_SECONDS = 9;
+    //Players whose biome made them Restless on the last update (and had their chance at its message)
+    private static final Set<UUID> IN_BIOME = new HashSet<>();
 
     private static String[] parsedBiomes;
     //By <dimension>|<biome>, either one possibly a wildcard
@@ -123,12 +126,16 @@ public final class Restless {
      * One message per update, so a new biome and a new item a second apart each get theirs.
      */
     private static void warn(EntityPlayerMP player, State state) {
+        UUID id = player.getUniqueID();
+        if(state.biomeLevel <= 0) IN_BIOME.remove(id);
         if(keepShowing(player) || state.level <= 0) return;
-        Set<String> warned = WARNED.computeIfAbsent(player.getUniqueID(), id -> new HashSet<>());
+        Set<String> warned = WARNED.computeIfAbsent(id, key -> new HashSet<>());
         if(state.biomeLevel > 0) {
+            //Walking from one Restless biome straight into another: still Restless, so no new message
+            boolean wasInBiome = !IN_BIOME.add(id);
             //Once per config entry, so a whole dimension (0,*) warns once rather than for every biome in it
             BiomeEntry biomeEntry = getBiomeEntry(player);
-            if(biomeEntry != null && warned.add("biome:" + biomeEntry.key)) {
+            if(!wasInBiome && biomeEntry != null && warned.add("biome:" + biomeEntry.key)) {
                 sendWarning(player, "wakingnights.message.restless_biome");
                 return;
             }
@@ -179,6 +186,7 @@ public final class Restless {
     public static void onLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         WARNED.remove(event.player.getUniqueID());
         SHOWING.remove(event.player.getUniqueID());
+        IN_BIOME.remove(event.player.getUniqueID());
     }
 
     /** Waking up from a skipped night: having slept while Restless adds its levels */
@@ -200,9 +208,23 @@ public final class Restless {
         if(state.level > 0 && state.bedTrigger) raise((EntityPlayerMP) player, state.level, getNight());
     }
 
+    /**
+     * Surviving a Waking Night takes it away completely, but Restless always means the Waking Night after: anyone
+     * Restless at dawn (no sleeping during one, so being there is enough), or who clicked a bed while Restless that
+     * night, starts over at that level.
+     */
+    public static void afterWakingNight(EntityPlayerMP player, long night) {
+        int levels = Math.max(get(player).level, WakingLevel.getRestlessLevels(player, night));
+        if(levels <= 0) return;
+        WakingLevel.setRestlessDone(player, night, levels);
+        WakingLevel.addLevels(player, levels);
+        int after = WakingLevel.getLevel(player);
+        if(after > 0) NightTracker.tellReached(player, after);
+    }
+
     private static void raise(EntityPlayerMP player, int levels, long night) {
         if(WakingLevel.isRestlessDone(player, night)) return;
-        WakingLevel.setRestlessDone(player, night);
+        WakingLevel.setRestlessDone(player, night, levels);
         int before = WakingLevel.getLevel(player);
         WakingLevel.addLevels(player, levels);
         int after = WakingLevel.getLevel(player);
